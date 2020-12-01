@@ -143,7 +143,7 @@ class BaseSpec(object):
         self.prereq[strings.str_level_rank][strings.str_cmd_sre] = prereq_rank_sre
     
     def _init_rowhit(self):
-        def rowhit(node: DRAM, id_):
+        def rowhit(node: DRAM, cmd, id_):
             node_state = node.get_state()
             if node_state == strings.str_state_closed:
                 return False
@@ -158,7 +158,7 @@ class BaseSpec(object):
         self.rowhit[strings.str_level_bank][strings.str_cmd_wr] = rowhit
     
     def _init_rowopen(self):
-        def rowopen(node: DRAM):
+        def rowopen(node: DRAM, cmd, id_):
             node_state = node.get_state()
             if node_state == strings.str_state_closed:
                 return False
@@ -171,15 +171,20 @@ class BaseSpec(object):
         self.rowopen[strings.str_level_bank][strings.str_cmd_wr] = rowopen
     
     def _init_lambda(self):
-        # todo
+        
         def lambda_bank_act(node: DRAM, cmd, id_):
-            pass
+            node.set_state(strings.str_state_opened)
+            node.row_state[id_] = strings.str_state_opened
         
         def lambda_bank_pre(node: DRAM, cmd, id_):
-            pass
+            node.set_state(strings.str_state_closed)
+            node.row_state = {}
         
         def lambda_rank_prea(node: DRAM, cmd, id_):
-            pass
+            for bg in node.children:
+                for bank in bg.children:
+                    bank.set_state(strings.str_state_closed)
+                    bank.row_state = {}
         
         def lambda_rank_ref(node: DRAM, cmd, id_):
             return
@@ -190,23 +195,20 @@ class BaseSpec(object):
         def lambda_bank_wr(node: DRAM, cmd, id_):
             return
         
-        def lambda_bank_rda(node: DRAM, cmd, id_):
-            pass
-        
-        def lambda_bank_wra(node: DRAM, cmd, id_):
-            pass
-        
         def lambda_rank_pde(node: DRAM, cmd, id_):
-            pass
+            for bg in node.children:
+                for bank in bg.children:
+                    if bank.get_state() == strings.str_state_closed:
+                        continue
+                    node.set_state(strings.str_state_actpowerdown)
+                    return
+            node.set_state(strings.str_state_prepowerdown)
         
         def lambda_rank_pdx(node: DRAM, cmd, id_):
-            pass
+            node.set_state(strings.str_state_powerup)
         
         def lambda_rank_sre(node: DRAM, cmd, id_):
-            pass
-        
-        def lambda_rank_srx(node: DRAM, cmd, id_):
-            pass
+            node.set_state(strings.str_state_selfrefresh)
         
         self.lambda_[strings.str_level_bank][strings.str_cmd_act] = lambda_bank_act
         self.lambda_[strings.str_level_bank][strings.str_cmd_pre] = lambda_bank_pre
@@ -214,12 +216,12 @@ class BaseSpec(object):
         self.lambda_[strings.str_level_rank][strings.str_cmd_ref] = lambda_rank_ref
         self.lambda_[strings.str_level_bank][strings.str_cmd_rd] = lambda_bank_rd
         self.lambda_[strings.str_level_bank][strings.str_cmd_wr] = lambda_bank_wr
-        self.lambda_[strings.str_level_bank][strings.str_cmd_rda] = lambda_bank_rda
-        self.lambda_[strings.str_level_bank][strings.str_cmd_wra] = lambda_bank_wra
+        self.lambda_[strings.str_level_bank][strings.str_cmd_rda] = lambda_bank_pre
+        self.lambda_[strings.str_level_bank][strings.str_cmd_wra] = lambda_bank_pre
         self.lambda_[strings.str_level_rank][strings.str_cmd_pde] = lambda_rank_pde
         self.lambda_[strings.str_level_rank][strings.str_cmd_pdx] = lambda_rank_pdx
         self.lambda_[strings.str_level_rank][strings.str_cmd_sre] = lambda_rank_sre
-        self.lambda_[strings.str_level_rank][strings.str_cmd_srx] = lambda_rank_srx
+        self.lambda_[strings.str_level_rank][strings.str_cmd_srx] = lambda_rank_pdx
     
     def _init_timing(self):
         pass  # todo

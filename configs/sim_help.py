@@ -18,10 +18,10 @@ def print_state_every_cycle(dram, start, end=None):
 def early_termination(dram, end, args):
     if dram.num_cycle > end:
         dram.print_internal_state()
-        print_statistics(dram, args)
+        print_statistics(args)
         print('The number of cycle larger than', end)
         exit(886)
 
 
 def print_statistics(args):
-    pass  # todo
+    from offchip.memory_access_handler import MemoryAccessHandler as MAH

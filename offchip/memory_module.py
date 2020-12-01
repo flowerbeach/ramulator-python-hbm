@@ -14,7 +14,7 @@ class DRAM(object):
         self.parent = None  # type: DRAM
         self.children = []  # type: List[DRAM]
         self.row_state = {}
-
+        
         self.cur_serving_requests = 0
         self.begin_of_serving = -1
         self.end_of_serving = -1
@@ -95,3 +95,6 @@ class DRAM(object):
     
     def get_state(self):
         return self._state
+    
+    def set_state(self, state):
+        self._state = state
