@@ -4,10 +4,11 @@ from offchip.dram_spec.spec_base import BaseSpec
 
 
 class DRAM(object):
-    def __init__(self, spec: BaseSpec, level, id):
+    def __init__(self, spec: BaseSpec, level, level_idx, id_):
+        self.id_ = id_
         self.spec = spec
         self.level = level
-        self.id = id
+        self.level_idx = level_idx
         
         self.size = -1
         self.parent = None  # type: DRAM
@@ -48,24 +49,24 @@ class DRAM(object):
                 dist = max(dist, t.dist)
             if dist > 0:
                 self._prev[cmd] = [-1 for _ in range(dist)]
-        child_level = strings.dict_list_level_spec[self.spec.name_spec][
-            strings.dict_list_level_spec[self.spec.name_spec].index(self.level) + 1]
+        child_level_idx = strings.dict_list_level_spec[self.spec.name_spec].index(self.level) + 1
+        child_level = strings.dict_list_level_spec[self.spec.name_spec][child_level_idx]
         
         if child_level == strings.str_level_row:
             return
-        child_max = self.spec.org_entry.count[child_level]
+        child_max = self.spec.org_entry.count[child_level_idx]
         if child_max == 0:
             return
         
         for i in range(child_max):
-            child = DRAM(self.spec, child_level, id=i)
+            child = DRAM(self.spec, child_level, child_level_idx, id_=i)
             child.parent = self
             self.children.append(child)
     
     def insert(self, child):
         child: DRAM
         child.parent = self
-        child.id = len(self.children)
+        child.id_ = len(self.children)
         self.children.append(child)
     
     def decode(self):
@@ -91,3 +92,6 @@ class DRAM(object):
     
     def finish(self):
         pass
+    
+    def get_state(self):
+        return self._state

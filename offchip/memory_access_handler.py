@@ -17,7 +17,7 @@ class MemoryAccessHandler(object):
     
     @staticmethod
     def initialize(args_, ctrls):
-        MemoryAccessHandler.__ctrls = ctrls
+        MemoryAccessHandler.__ctrls = ctrls  # todo
     
     @staticmethod
     def get_num_pending_requests():
@@ -46,7 +46,7 @@ class MemoryAccessHandler(object):
     @staticmethod
     def cycle():
         MemoryAccessHandler._num_cycles += 1
-
+    
     @staticmethod
     def finish():
         pass

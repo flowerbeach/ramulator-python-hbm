@@ -1,8 +1,20 @@
 str_spec_hbm = 'hbm'
 str_spec_ddr4 = 'ddr4'
+list_str_spec = [
+    str_spec_hbm,
+    str_spec_ddr4,
+]
 
 str_org_rank = 'rank'
 str_org_channel = 'channel'
+str_org_1Gb = '1Gb'
+str_org_2Gb = '2Gb'
+str_org_4Gb = '4Gb'
+list_str_org_hbm = [
+    str_org_1Gb, str_org_2Gb, str_org_4Gb
+]
+
+str_speed_1Gbps = '1Gbps'
 
 str_req_type_read = 'read'
 str_req_type_write = 'write'
@@ -16,8 +28,7 @@ list_str_type_all = [
     str_req_type_refresh,
     str_req_type_powerdown,
     str_req_type_selfrefresh,
-    str_req_type_extension,
-]
+    str_req_type_extension]
 
 str_cmd_act = 'act'
 str_cmd_pre = 'pre'
@@ -39,8 +50,7 @@ list_str_cmd_hbm = [
     str_cmd_wr, str_cmd_wra,
     str_cmd_ref, str_cmd_refsb,
     str_cmd_pde, str_cmd_pdx,
-    str_cmd_sre, str_cmd_srx,
-]
+    str_cmd_sre, str_cmd_srx]
 dict_list_cmd_spec = {
     str_spec_hbm: list_str_cmd_hbm,
 }
@@ -57,8 +67,7 @@ list_str_level_hbm = [
     str_level_bankgroup,
     str_level_bank,
     str_level_row,
-    str_level_column
-]
+    str_level_column]
 dict_list_level_spec = {
     str_spec_hbm: list_str_level_hbm,
 }
@@ -75,8 +84,7 @@ list_str_state_hbm = [
     str_state_powerup,
     str_state_actpowerdown,
     str_state_prepowerdown,
-    str_state_selfrefresh
-]
+    str_state_selfrefresh]
 dict_list_state_spec = {
     str_spec_hbm: list_str_state_hbm,
 }

@@ -6,9 +6,9 @@ from configs import strings, sim_help
 
 class ArgumentParser(Tap):
     name_spec: str = strings.str_spec_hbm
-    organization: str = ''
+    org: str = ''
+    speed: str = ''
     mapping: str = 'defaultmapping'
-    speed: int = 1
     display: str = 'more'  # more, less
     ideal: int = 0  # ideal experiment
     
@@ -53,7 +53,11 @@ def parse_config(args_):
             args_.expected_limit_insts = int(items[1])
         elif items[0] == 'warmup_insts':
             args_.warmup_insts = int(items[1])
-    
+        elif items[0] == 'org':
+            args_.org = items[1].split('_')[1]
+        elif items[0] == 'speed':
+            args_.speed = items[1].split('_')[1]
+
     return args_
 
 
@@ -66,13 +70,13 @@ from offchip.dram_spec.spec_base import BaseSpec
 from offchip.memory_data_structure import Request, Trace
 
 
-def main(args_, standard_: BaseSpec, trace_: Trace):
+def main(args_, spec_: BaseSpec, trace_: Trace):
     from offchip.memory_access_handler import MemoryAccessHandler as MAH
     from offchip.memory_controller import Controller
-    from offchip.memory_dram import DRAM
+    from offchip.memory_module import DRAM
     ctrls = []
     for i in range(args_.num_channels):
-        channel = DRAM(standard_, strings.str_org_channel, i)
+        channel = DRAM(spec_, strings.str_org_channel, 0, i)
         ctrl = Controller(args_, channel)
         ctrls.append(ctrl)
     MAH.initialize(args_, ctrls)
@@ -81,15 +85,12 @@ def main(args_, standard_: BaseSpec, trace_: Trace):
     while flag_end is False or MAH.get_num_pending_requests() > 0:
         if flag_end is False and MAH.flag_stall is False:
             flag_end, ptr_addr, type_request = trace_.get_trace_request()
-        
-        if flag_end is False:
             request = Request(ptr_addr, type_request)
-            request.ptr_addr = ptr_addr
-            request.type_request = type_request
             MAH.send(request)
-        else:
+        
+        if flag_end is True:
             # make sure that all write requests in the write queue are drained
-            MAH.set_high_writeq_watermark(0)
+            MAH.set_high_writeq_watermark(0.0)
         
         MAH.cycle()
     
@@ -98,6 +99,9 @@ def main(args_, standard_: BaseSpec, trace_: Trace):
 
 
 if __name__ == '__main__':
+    print(Argument.args)
+    print()
+    
     # DRAM trace
     trace_file = 'dram.trace'
     
