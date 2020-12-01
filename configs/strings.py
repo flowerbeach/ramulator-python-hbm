@@ -22,7 +22,7 @@ str_req_type_refresh = 'refresh'
 str_req_type_powerdown = 'powerdown'
 str_req_type_selfrefresh = 'selfrefresh'
 str_req_type_extension = 'extension'
-list_str_type_all = [
+list_str_req_type_all = [
     str_req_type_read,
     str_req_type_write,
     str_req_type_refresh,

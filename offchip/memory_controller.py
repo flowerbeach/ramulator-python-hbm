@@ -1,5 +1,62 @@
+from typing import List
+from configs import strings
+from offchip.memory_data_structure import Request
+from offchip.memory_module import DRAM
+
+
+class Scheduler(object):
+    def __init__(self, controller):
+        pass
+
+
+class RowPolicy(object):
+    def __init__(self, controller):
+        pass
+
+
+class RowTable(object):
+    def __init__(self, controller):
+        pass
+
+
+class Refresh(object):
+    def __init__(self, controller):
+        pass
+
+
 class Controller(object):
-    def __init__(self, args_, dram):
+    class Queue(object):
+        def __init__(self, max=32):
+            self.queue_requests = []  # type: List[Request]
+            self.max = max
+        
+        def size(self):
+            return len(self.queue_requests)
+    
+    def __init__(self, args_, channel: DRAM):
+        self.num_cycles = 0
+        self.channel = channel
+        self.scheduler = Scheduler(self)
+        self.row_policy = RowPolicy(self)
+        self.row_table = RowTable(self)
+        self.refresh = Refresh(self)
+        
+        self.queue_read = Controller.Queue()
+        self.queue_write = Controller.Queue()
+        self.queue_activate = Controller.Queue()
+        # read and write requests for which activate was issued are moved to
+        # actq, which has higher priority than readq and writeq.
+        # This is an optimization for avoiding useless activations (i.e., PRECHARGE
+        # after ACTIVATE w/o READ of WRITE command)
+        self.queue_other = Controller.Queue()  # queue for all "other" requests (e.g., refresh)
+        
+        self.pending_reads = Controller.Queue()  # read requests that are about to receive data from DRAM
+        self.write_mode = False
+        
+        self.wr_high_watermark = 0.8
+        self.wr_low_watermark = 0.2
+        
+        # statistics
         self._bytes_read = 0
         self._bytes_write = 0
         
@@ -30,43 +87,42 @@ class Controller(object):
         self._record_hits_write = 0
         self._record_misses_write = 0
         self._record_conflicts_write = 0
-        
-        # public
-        self.num_cycles = 0
-        self.channel = None
-        self.scheduler = None
-        self.rowpolicy = None
-        self.rowtable = None
-        self.refresh = None
-        
-        self.queue_read = []
-        self.queue_write = []
-        self.queue_activate = []
-        # read and write requests for which activate was issued are moved to
-        # actq, which has higher priority than readq and writeq.
-        # This is an optimization for avoiding useless activations (i.e., PRECHARGE
-        # after ACTIVATE w/o READ of WRITE command)
-        self.queue_other = []  # queue for all "other" requests (e.g., refresh)
-        
-        self.pending_reads = []  # read requests that are about to receive data from DRAM
-        self.write_mode = False
-        
-        self.wr_high_watermark = 0.8
-        self.wr_low_watermark = 0.2
-        
-        self.initialize()
     
-    def initialize(self):
-        pass
+    def finish(self, read_req):
+        self._latency_read_avg = self._latency_read_sum / read_req
+        self._req_queue_length_avg = self._req_queue_length_sum / self.num_cycles
+        self._req_queue_length_read_avg = self._req_queue_length_read_sum / self.num_cycles
+        self._req_queue_length_write_avg = self._req_queue_length_write_sum / self.num_cycles
+        self.channel.finish(self.num_cycles)
     
-    def finish(self):
-        pass
+    def _get_queue(self, type_):
+        if type_ == strings.str_req_type_read:
+            return self.queue_read
+        elif type_ == strings.str_req_type_write:
+            return self.queue_write
+        elif type_ in strings.list_str_req_type_all:
+            return self.queue_other
+        else:
+            raise Exception(type_)
     
-    def get_queue(self):
-        pass
-    
-    def enqueue(self):
-        pass
+    def enqueue(self, req: Request):
+        queue = self._get_queue(req.type)
+        if queue.size() == queue.max:
+            return False
+        elif queue.size() > queue.max:
+            raise Exception(queue.size())
+        
+        req.arrive = self.num_cycles
+        queue.queue_requests.append(req)
+        
+        if req.type == strings.str_req_type_read:
+            for wreq in self.queue_write.queue_requests:
+                if wreq.addr == req.addr:
+                    req.depart = self.num_cycles + 1
+                    self.pending_reads.queue_requests.append(req)
+                    self.queue_read.queue_requests.pop()
+                    break
+        return True
     
     def cycle(self):
         pass

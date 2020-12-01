@@ -34,7 +34,7 @@ class Request(object):
         self.addr = addr
         # self.addr_list = []  # todo for what?
         
-        if type_ not in strings.list_str_type_all:
+        if type_ not in strings.list_str_req_type_all:
             raise Exception(type_)
         
         self.arrive = -1

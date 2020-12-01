@@ -90,7 +90,7 @@ class DRAM(object):
     def update_serving_requests(self):
         pass
     
-    def finish(self):
+    def finish(self, num_cycles):
         pass
     
     def get_state(self):
