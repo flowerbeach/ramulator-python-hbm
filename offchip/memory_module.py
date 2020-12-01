@@ -1,12 +1,12 @@
 from typing import List
 from configs import strings
-from offchip.dram_spec.spec_base import BaseSpec
 
 
 class DRAM(object):
-    def __init__(self, spec: BaseSpec, level, level_idx, id_):
+    def __init__(self, spec, level, level_idx, id_):
+        from offchip.dram_spec.spec_base import BaseSpec
         self.id_ = id_
-        self.spec = spec
+        self.spec = spec  # type: BaseSpec
         self.level = level
         self.level_idx = level_idx
         

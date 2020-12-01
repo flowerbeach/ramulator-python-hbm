@@ -47,8 +47,8 @@ class SpeedEntry(object):
 
 
 class TimingEntry(object):
-    def __init__(self):
-        self.cmd = ''
-        self.dist = -1
-        self.val = -1
-        self.sibling = False
+    def __init__(self, cmd, dist, val, sibling=None):
+        self.cmd = cmd
+        self.dist = dist
+        self.val = val
+        self.sibling = sibling
