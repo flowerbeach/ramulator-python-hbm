@@ -13,7 +13,8 @@ class DRAM(object):
         self.size = -1
         self.parent = None  # type: DRAM
         self.children = []  # type: List[DRAM]
-        
+        self.row_state = {}
+
         self.cur_serving_requests = 0
         self.begin_of_serving = -1
         self.end_of_serving = -1
@@ -30,7 +31,6 @@ class DRAM(object):
         self._next = []
         self._prev = {}
         self._state = None
-        self._row_state = {}
         
         self.initialize()
     
