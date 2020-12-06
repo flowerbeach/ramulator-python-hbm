@@ -1,10 +1,10 @@
 from typing import List
 from configs import strings
+from offchip.dram_spec.spec_base import BaseSpec
 
 
 class DRAM(object):
-    def __init__(self, spec, level, level_idx, id_):
-        from offchip.dram_spec.spec_base import BaseSpec
+    def __init__(self, spec: BaseSpec, level: str, level_idx: int, id_: int):
         self.id_ = id_
         self.spec = spec  # type: BaseSpec
         self.level = level
@@ -52,7 +52,7 @@ class DRAM(object):
         child_level_idx = strings.dict_list_level_spec[self.spec.name_spec].index(self.level) + 1
         child_level = strings.dict_list_level_spec[self.spec.name_spec][child_level_idx]
         
-        if child_level == strings.str_level_row:
+        if child_level == strings.level_row:
             return
         child_max = self.spec.org_entry.count[child_level_idx]
         if child_max == 0:

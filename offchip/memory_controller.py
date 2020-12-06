@@ -40,6 +40,7 @@ class Controller(object):
         self.row_policy = RowPolicy(self)
         self.row_table = RowTable(self)
         self.refresh = Refresh(self)
+        self.spec = channel.spec
         
         self.queue_read = Controller.Queue()
         self.queue_write = Controller.Queue()
@@ -96,11 +97,11 @@ class Controller(object):
         self.channel.finish(self.num_cycles)
     
     def _get_queue(self, type_):
-        if type_ == strings.str_req_type_read:
+        if type_ == strings.req_type_read:
             return self.queue_read
-        elif type_ == strings.str_req_type_write:
+        elif type_ == strings.req_type_write:
             return self.queue_write
-        elif type_ in strings.list_str_req_type_all:
+        elif type_ in strings.list_req_type_all:
             return self.queue_other
         else:
             raise Exception(type_)
@@ -115,9 +116,9 @@ class Controller(object):
         req.arrive = self.num_cycles
         queue.queue_requests.append(req)
         
-        if req.type == strings.str_req_type_read:
+        if req.type == strings.req_type_read:
             for wreq in self.queue_write.queue_requests:
-                if wreq.addr == req.addr:
+                if wreq.addr_int == req.addr_int:
                     req.depart = self.num_cycles + 1
                     self.pending_reads.queue_requests.append(req)
                     self.queue_read.queue_requests.pop()
@@ -142,10 +143,10 @@ class Controller(object):
     def is_refresh(self):
         pass
     
-    def set_high_writeq_watermark(self):
+    def set_high_writeq_watermark(self, mark):
         pass
     
-    def set_low_writeq_watermark(self):
+    def set_low_writeq_watermark(self, mark):
         pass
     
     #
@@ -160,3 +161,8 @@ class Controller(object):
     
     def _get_addr_vec(self):
         pass
+    
+    def print_state(self):
+        print('   queue_read: {}'.format(self.queue_read.size()))
+        print('   queue_write: {}'.format(self.queue_write.size()))
+        print('   queue_other: {}'.format(self.queue_other.size()))

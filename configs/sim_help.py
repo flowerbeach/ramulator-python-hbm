@@ -1,11 +1,15 @@
-def print_state_periodically(dram, start, interval=1000, do_print_state=False):
-    if dram.num_cycle > start:
-        if dram.num_cycle % interval == 0:
+from offchip.memory_access_handler import MemAccHan as MAH
+
+
+def print_state_periodically(start, interval=1000, do_print_state=False):
+    num_cycle = MAH.get_num_cycle()
+    if num_cycle > start:
+        if num_cycle % interval == 0:
             if do_print_state is True:
-                dram.print_internal_state()
+                MAH.print_internal_state()
             else:
-                print(dram.num_cycle, end='  ')
-                if dram.num_cycle % (interval * 10) == 0:
+                print(num_cycle, end='  ')
+                if num_cycle % (interval * 10) == 0:
                     print()
 
 
@@ -15,13 +19,14 @@ def print_state_every_cycle(dram, start, end=None):
             dram.print_internal_state()
 
 
-def early_termination(dram, end, args):
-    if dram.num_cycle > end:
-        dram.print_internal_state()
+def early_termination(end, args):
+    if MAH.get_num_cycle() > end:
+        # MAH.print_internal_state()  todo
         print_statistics(args)
         print('The number of cycle larger than', end)
         exit(886)
 
 
 def print_statistics(args):
-    from offchip.memory_access_handler import MemoryAccessHandler as MAH
+    from offchip.memory_access_handler import MemAccHan as MAH
+    print('TODO: print_statistics')

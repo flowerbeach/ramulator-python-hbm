@@ -5,7 +5,7 @@ from configs import strings, sim_help
 
 
 class ArgumentParser(Tap):
-    name_spec: str = strings.str_spec_hbm
+    name_spec: str = strings.spec_hbm
     org: str = ''
     speed: str = ''
     mapping: str = 'defaultmapping'
@@ -19,6 +19,7 @@ class ArgumentParser(Tap):
     mem_tick = -1
     warmup_insts = 0
     expected_limit_insts = 0
+    translation = strings.translation_none
 
 
 def parse_config(args_):
@@ -57,7 +58,10 @@ def parse_config(args_):
             args_.org = items[1].split('_')[1]
         elif items[0] == 'speed':
             args_.speed = items[1].split('_')[1]
-
+        elif items[0] == 'translation':
+            args_.translation = items[1].lower()
+            assert args_.translation in strings.list_translation
+    
     return args_
 
 
@@ -71,17 +75,17 @@ from offchip.memory_data_structure import Request, Trace
 
 
 def main(args_, spec_: BaseSpec, trace_: Trace):
-    from offchip.memory_access_handler import MemoryAccessHandler as MAH
+    from offchip.memory_access_handler import MemAccHan as MAH
     from offchip.memory_controller import Controller
     from offchip.memory_module import DRAM
     ctrls = []
     for i in range(args_.num_channels):
-        channel = DRAM(spec_, strings.str_org_channel, 0, i)
+        channel = DRAM(spec_, strings.org_channel, 0, i)
         ctrl = Controller(args_, channel)
         ctrls.append(ctrl)
     MAH.initialize(args_, ctrls)
     
-    flag_end, ptr_addr, type_request = False, 0, strings.str_req_type_read
+    flag_end, ptr_addr, type_request = False, 0, strings.req_type_read
     while flag_end is False or MAH.get_num_pending_requests() > 0:
         if flag_end is False and MAH.flag_stall is False:
             flag_end, ptr_addr, type_request = trace_.get_trace_request()
@@ -91,6 +95,10 @@ def main(args_, spec_: BaseSpec, trace_: Trace):
         if flag_end is True:
             # make sure that all write requests in the write queue are drained
             MAH.set_high_writeq_watermark(0.0)
+        
+        sim_help.print_state_periodically(start=0, interval=1000, do_print_state=False)
+        # sim_help.print_state_periodically(start=0, interval=100, do_print_state=True)
+        sim_help.early_termination(end=10000, args=args_)
         
         MAH.cycle()
     
@@ -106,7 +114,7 @@ if __name__ == '__main__':
     trace_file = 'dram.trace'
     
     name_spec = Argument.args.name_spec
-    if name_spec == strings.str_spec_hbm:
+    if name_spec == strings.spec_hbm:
         Standard = BaseSpec
     else:
         raise Exception(name_spec)
