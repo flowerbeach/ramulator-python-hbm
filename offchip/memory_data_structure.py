@@ -15,16 +15,19 @@ class Trace(object):
                                'W': strings.req_type_write}
     
     def get_trace_request(self):
-        end, req_addr, req_type = True, None, None
+        end, request = True, None
         if self.ptr_line_next >= len(self.list_trace):
-            return end, req_addr, req_type
+            return end, request
         
         end = False
         line = self.list_trace[self.ptr_line_next].strip()
         items = line.split(' ')
         req_addr = int(items[0][2:], 16)
         req_type = self.dict_RW2string[items[1]]
-        return end, req_addr, req_type
+        request = Request(req_addr, req_type)
+        
+        self.ptr_line_next += 1
+        return end, request
 
 
 class Request(object):
@@ -41,3 +44,7 @@ class Request(object):
         
         if type_ not in strings.list_req_type_all:
             raise Exception(type_)
+    
+    def print(self):
+        print('{} {}:'.format(self.device, self.type), self.addr_list)
+        print('arrive: {}, depart: {}'.format(self.arrive, self.depart))

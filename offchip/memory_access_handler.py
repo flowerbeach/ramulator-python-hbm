@@ -84,6 +84,7 @@ class MemAccHan(object):
         
         addr_int = config.clear_lower_bits(addr_int, MemAccHan.tx_bits)
         
+        # separate the address according to the level
         for i in range(len(MemAccHan._addr_bits)):
             request.addr_list.append(None)
         if MemAccHan.type_ == strings.memory_type_ChRaBaRoCo:
@@ -101,10 +102,10 @@ class MemAccHan(object):
         else:
             raise Exception(MemAccHan.type_)
         
-        print(request.addr_list)
-        
+        # enqueue the request and update the statistic
         if MemAccHan.__ctrls[request.addr_list[0]].enqueue(request) is True:
-            MemAccHan.flag_stall = True
+            # request enqueued successfully
+            MemAccHan.flag_stall = False
             if type_ == strings.req_type_read:
                 if device not in MemAccHan._num_reads_device.keys():
                     MemAccHan._num_reads_device[device] = 1
@@ -126,7 +127,8 @@ class MemAccHan(object):
             else:
                 raise Exception(type_)
         else:
-            MemAccHan.flag_stall = False
+            # failed to enqueue the request
+            MemAccHan.flag_stall = True
     
     @staticmethod
     def cycle():
@@ -167,11 +169,11 @@ class MemAccHan(object):
     def get_num_pending_requests():
         num_reqs = 0
         for ctrl in MemAccHan.__ctrls:
-            num_reqs += (len(ctrl.queue_read) +
-                         len(ctrl.queue_write) +
-                         len(ctrl.queue_other) +
-                         len(ctrl.queue_activate) +
-                         len(ctrl.pending_reads))
+            num_reqs += (ctrl.queue_read.size() +
+                         ctrl.queue_write.size() +
+                         ctrl.queue_other.size() +
+                         ctrl.queue_activate.size() +
+                         ctrl.pending_reads.size())
         return num_reqs
     
     @staticmethod

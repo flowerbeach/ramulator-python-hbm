@@ -85,11 +85,13 @@ def main(args_, spec_: BaseSpec, trace_: Trace):
         ctrls.append(ctrl)
     MAH.initialize(args_, ctrls)
     
-    flag_end, ptr_addr, type_request = False, 0, strings.req_type_read
+    flag_end = False
     while flag_end is False or MAH.get_num_pending_requests() > 0:
+        request = None  # type: Request
         if flag_end is False and MAH.flag_stall is False:
-            flag_end, ptr_addr, type_request = trace_.get_trace_request()
-            request = Request(ptr_addr, type_request)
+            flag_end, request = trace_.get_trace_request()
+        
+        if flag_end is False:
             MAH.send(request)
         
         if flag_end is True:
