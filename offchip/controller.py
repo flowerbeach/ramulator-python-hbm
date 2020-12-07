@@ -4,11 +4,6 @@ from offchip.data_structure import Request
 from offchip.dram_module import DRAM
 
 
-class Refresh(object):
-    def __init__(self, controller):
-        raise Exception('todo')
-
-
 class Controller(object):
     class Queue(object):
         def __init__(self, max=32):
@@ -20,8 +15,9 @@ class Controller(object):
     
     def __init__(self, args_, channel: DRAM):
         from offchip.schedule import Scheduler, RowTable, RowPolicy
+        from offchip.refresh import Refresh
         
-        self.num_cycles = 0
+        self.cycle_current = 0
         self.channel = channel
         self.spec = channel.spec
         self.scheduler = Scheduler(self)
@@ -78,17 +74,17 @@ class Controller(object):
     
     def finish(self, read_req):
         self._latency_read_avg = self._latency_read_sum / read_req
-        self._req_queue_length_avg = self._req_queue_length_sum / self.num_cycles
-        self._req_queue_length_read_avg = self._req_queue_length_read_sum / self.num_cycles
-        self._req_queue_length_write_avg = self._req_queue_length_write_sum / self.num_cycles
-        self.channel.finish(self.num_cycles)
+        self._req_queue_length_avg = self._req_queue_length_sum / self.cycle_current
+        self._req_queue_length_read_avg = self._req_queue_length_read_sum / self.cycle_current
+        self._req_queue_length_write_avg = self._req_queue_length_write_sum / self.cycle_current
+        self.channel.finish(self.cycle_current)
     
     def _get_queue(self, type_):
-        if type_ == strings.req_type_read:
+        if type_ == Request.Type.read:
             return self.queue_read
-        elif type_ == strings.req_type_write:
+        elif type_ == Request.Type.write:
             return self.queue_write
-        elif type_ in strings.list_req_type_all:
+        elif type_ in Request.Type:
             return self.queue_other
         else:
             raise Exception(type_)
@@ -100,13 +96,13 @@ class Controller(object):
         elif queue.size() > queue.max:
             raise Exception(queue.size())
         
-        req.arrive = self.num_cycles
+        req.cycle_arrive = self.cycle_current
         queue.queue_requests.append(req)
         
-        if req.type == strings.req_type_read:
+        if req.type == Request.Type.read:
             for wreq in self.queue_write.queue_requests:
                 if wreq.addr_int == req.addr_int:
-                    req.depart = self.num_cycles + 1
+                    req.cycle_depart = self.cycle_current + 1
                     self.pending_reads.queue_requests.append(req)
                     self.queue_read.queue_requests.pop()
                     break
@@ -116,36 +112,46 @@ class Controller(object):
         raise Exception('todo')
     
     def is_ready_req(self, request: Request):
-        raise Exception('todo')
+        cmd = self._get_first_cmd(request)
+        return self.channel.check(cmd, request.addr_list, self.cycle_current)
     
-    def is_ready_cmd(self, command, addr_vec):
-        raise Exception('todo')
+    def is_ready_cmd(self, cmd, addr_list):
+        return self.channel.check(cmd, addr_list, self.cycle_current)
     
     def is_row_hit_req(self, request: Request):
-        raise Exception('todo')
+        cmd = self.channel.spec.translate[request.type]
+        return self.channel.check_row_hit(cmd, request.addr_list)
     
-    def is_row_hit_cmd(self, command, addr_vec):
-        raise Exception('todo')
+    def is_row_hit_cmd(self, cmd, addr_list):
+        return self.channel.check_row_hit(cmd, addr_list)
     
     def is_row_open_req(self, request: Request):
-        raise Exception('todo')
+        cmd = self.channel.spec.translate[request.type]
+        return self.channel.check_row_open(cmd, request.addr_list)
+    
+    def is_row_open_cmd(self, cmd, addr_list):
+        return self.channel.check_row_open(cmd, addr_list)
     
     def is_active(self):
-        raise Exception('todo')
+        return self.channel.cur_serving_requests > 0
     
     def is_refresh(self):
-        raise Exception('todo')
+        return self.cycle_current <= self.channel.end_of_refreshing
     
     def set_high_writeq_watermark(self, mark):
-        raise Exception('todo')
+        self.wr_high_watermark = mark
     
     def set_low_writeq_watermark(self, mark):
-        raise Exception('todo')
+        self.wr_low_watermark = mark
     
-    #
+    def set_temperature(self, current_temperature):
+        return
     
-    def _get_first_cmd(self):
-        raise Exception('todo')
+    ###
+    
+    def _get_first_cmd(self, request: Request):
+        cmd = self.channel.spec.translate[request.type]
+        return self.channel.decode(cmd, request.addr_list)
     
     def _cmd_issue_autoprecharge(self):
         raise Exception('todo')
@@ -153,8 +159,9 @@ class Controller(object):
     def _issue_cmd(self):
         raise Exception('todo')
     
-    def _get_addr_vec(self):
-        raise Exception('todo')
+    @staticmethod
+    def _get_addr_vec(cmd, req: Request):
+        return req.addr_list
     
     def print_state(self):
         print('   queue_read: {}'.format(self.queue_read.size()))

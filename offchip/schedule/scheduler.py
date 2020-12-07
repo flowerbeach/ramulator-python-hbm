@@ -23,11 +23,12 @@ class Scheduler(object):
         # Change the following line to change cap
         self.cap = 16
         
-        self._compare = [self._compare_FCFS,
-                         self._compare_FRFCFS,
-                         self._compare_FRFCFS_CAP,
-                         self._compare_FRFCFS_PriorHit
-                         ]  # type: List[Scheduler._compare_FCFS]
+        self._compare = {
+            self.Type.FCFS: self._compare_FCFS,
+            self.Type.FRFCFS: self._compare_FRFCFS,
+            self.Type.FRFCFS_CAP: self._compare_FRFCFS_CAP,
+            self.Type.FRFCFS_PriorHit: self._compare_FRFCFS_PriorHit
+        }  # type: List[Scheduler._compare_FCFS]
     
     def get_head(self, queue_req: List[Request]):
         
@@ -75,17 +76,21 @@ class Scheduler(object):
         return head
     
     def _compare_FCFS(self, req1, req2):
+        raise Exception('todo')
         head = None
         return head
     
     def _compare_FRFCFS(self, req1, req2):
+        raise Exception('todo')
         head = None
         return head
     
     def _compare_FRFCFS_CAP(self, req1, req2):
+        raise Exception('todo')
         head = None
         return head
     
     def _compare_FRFCFS_PriorHit(self, req1, req2):
+        raise Exception('todo')
         head = None
         return head

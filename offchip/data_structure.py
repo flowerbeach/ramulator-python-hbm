@@ -1,6 +1,7 @@
 import os
 from configs import strings
 from typing import List
+from enum import Enum, unique
 
 
 class Trace(object):
@@ -11,8 +12,8 @@ class Trace(object):
             raise Exception('File {} does not exist.'.format(trace_filename))
         with open(trace_filename, 'r') as f:
             self.list_trace = f.readlines()
-        self.dict_RW2string = {'R': strings.req_type_read,
-                               'W': strings.req_type_write}
+        self.dict_RW2string = {'R': Request.Type.read,
+                               'W': Request.Type.write}
     
     def get_trace_request(self):
         end, request = True, None
@@ -31,20 +32,36 @@ class Trace(object):
 
 
 class Request(object):
-    def __init__(self, addr_int, type_, device='None'):
-        self.type = type_  # type: str
+    @unique
+    class Type(Enum):
+        read = 'read'
+        write = 'write'
+        refresh = 'refresh'
+        powerdown = 'powerdown'
+        selfrefresh = 'selfrefresh'
+        extension = 'extension'
+    
+    def __init__(self, addr, type_, device=''):
         self.device = device  # type: str
-        self.addr_int = addr_int  # type: int
-        
-        self.is_first_command = True  # todo why?
+        self.type = type_  # type: str
+        self.addr_int = -1  # type: int
         self.addr_list = []  # type: List[int]
         
-        self.arrive = None  # type: int
-        self.depart = None  # type: int
+        if type(addr) == int:
+            self.addr_int = addr
+        elif type(addr) == list:
+            self.addr_list = addr
+        else:
+            raise Exception(addr)
         
-        if type_ not in strings.list_req_type_all:
+        self.is_first_command = True  # todo why?
+        
+        self.cycle_arrive = None  # type: int
+        self.cycle_depart = None  # type: int
+        
+        if type_ not in self.Type:
             raise Exception(type_)
     
     def print(self):
         print('{} {}:'.format(self.device, self.type), self.addr_list)
-        print('arrive: {}, depart: {}'.format(self.arrive, self.depart))
+        print('arrive: {}, depart: {}'.format(self.cycle_arrive, self.cycle_depart))

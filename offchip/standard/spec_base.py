@@ -32,26 +32,21 @@ class BaseSpec(object):
     
     def __init__(self, args):
         self.name_spec = args.name_spec
-        assert self.name_spec in strings.list_spec
+        assert self.name_spec in strings.standard
         
         self._org = args.org
         self._speed = args.speed
         self._num_ranks = args.num_ranks
         self._num_channels = args.num_channels
         
-        self.start = {
-            level: None for level in strings.dict_list_level_spec[self.name_spec]}
+        self.start = {level: None for level in self.level}
         
-        self.prereq = {level: {cmd: None for cmd in strings.dict_list_cmd_spec[self.name_spec]}
-                       for level in strings.dict_list_level_spec[self.name_spec]}
-        self.rowhit = {level: {cmd: None for cmd in strings.dict_list_cmd_spec[self.name_spec]}
-                       for level in strings.dict_list_level_spec[self.name_spec]}
-        self.rowopen = {level: {cmd: None for cmd in strings.dict_list_cmd_spec[self.name_spec]}
-                        for level in strings.dict_list_level_spec[self.name_spec]}
-        self.lambda_ = {level: {cmd: None for cmd in strings.dict_list_cmd_spec[self.name_spec]}
-                        for level in strings.dict_list_level_spec[self.name_spec]}
-        self.timing = {level: {cmd: [] for cmd in strings.dict_list_cmd_spec[self.name_spec]}
-                       for level in strings.dict_list_level_spec[self.name_spec]}  # type: Dict[str:Dict[str:List[TimingEntry]]]
+        self.prereq = {level: {cmd: None for cmd in self.cmd} for level in self.level}
+        self.rowhit = {level: {cmd: None for cmd in self.cmd} for level in self.level}
+        self.rowopen = {level: {cmd: None for cmd in self.cmd} for level in self.level}
+        self.lambda_ = {level: {cmd: None for cmd in self.cmd} for level in self.level}
+        self.timing = {level: {cmd: [] for cmd in self.cmd} for level in self.level
+                       }  # type: Dict[str:Dict[str:List[TimingEntry]]]
         
         self.org_table = {
             strings.org_1Gb: OrgEntry(1 << 10, 128, [0, 0, 4, 2, 1 << 13, 1 << (6 + 1)]),
@@ -68,10 +63,17 @@ class BaseSpec(object):
         self.channel_width = 128
         
         self.scope = [
-            strings.level_row, strings.level_bank, strings.level_rank,
-            strings.level_column, strings.level_column, strings.level_column, strings.level_column,
-            strings.level_rank, strings.level_bank, strings.level_rank, strings.level_rank, strings.level_rank, strings.level_rank
+            self.level.row, self.level.bank, self.level.rank,
+            self.level.column, self.level.column, self.level.column, self.level.column,
+            self.level.rank, self.level.bank, self.level.rank, self.level.rank, self.level.rank, self.level.rank
         ]
+        
+        from offchip.data_structure import Request
+        self.translate = {Request.Type.read: self.cmd.rd,
+                          Request.Type.write: self.cmd.wr,
+                          Request.Type.refresh: self.cmd.ref,
+                          Request.Type.powerdown: self.cmd.pde,
+                          Request.Type.selfrefresh: self.cmd.sre}
         
         self._init_speed()
         self._init_prereq()
@@ -82,32 +84,32 @@ class BaseSpec(object):
     
     @staticmethod
     def is_opening(cmd):
-        if cmd in [strings.cmd_act]:
+        if cmd in [BaseSpec.cmd.act]:
             return True
         return False
     
     @staticmethod
     def is_accessing(cmd):
-        if cmd in [strings.cmd_rd,
-                   strings.cmd_wr,
-                   strings.cmd_rda,
-                   strings.cmd_wra]:
+        if cmd in [BaseSpec.cmd.rd,
+                   BaseSpec.cmd.wr,
+                   BaseSpec.cmd.rda,
+                   BaseSpec.cmd.wra]:
             return True
         return False
     
     @staticmethod
     def is_closing(cmd):
-        if cmd in [strings.cmd_pre,
-                   strings.cmd_prea,
-                   strings.cmd_rda,
-                   strings.cmd_wra]:
+        if cmd in [BaseSpec.cmd.pre,
+                   BaseSpec.cmd.prea,
+                   BaseSpec.cmd.rda,
+                   BaseSpec.cmd.wra]:
             return True
         return False
     
     @staticmethod
     def is_refreshing(cmd):
-        if cmd in [strings.cmd_ref,
-                   strings.cmd_refsb]:
+        if cmd in [BaseSpec.cmd.ref,
+                   BaseSpec.cmd.refsb]:
             return True
         return False
     
@@ -141,22 +143,22 @@ class BaseSpec(object):
             if node_state == strings.state_powerup:
                 return '-1'
             elif node_state == strings.state_actpowerdown:
-                return strings.cmd_pdx
+                return self.cmd.pdx
             elif node_state == strings.state_prepowerdown:
-                return strings.cmd_pdx
+                return self.cmd.pdx
             elif node_state == strings.state_selfrefresh:
-                return strings.cmd_srx
+                return self.cmd.srx
             else:
                 raise Exception(node_state)
         
         def prereq_bank_rd(node: DRAM, cmd, id_):
             node_state = node.get_state()
             if node_state == strings.state_closed:
-                return strings.cmd_act
+                return self.cmd.act
             elif node_state == strings.state_opened:
                 if id_ in node.row_state:
                     return cmd
-                return strings.cmd_pre
+                return self.cmd.pre
             else:
                 raise Exception(node_state)
         
@@ -165,49 +167,49 @@ class BaseSpec(object):
                 for bank in bg.children:
                     if bank.get_state() == strings.state_closed:
                         continue
-                    return strings.cmd_prea
-            return strings.cmd_ref
+                    return self.cmd.prea
+            return self.cmd.ref
         
         def prereq_bank_refsb(node: DRAM, cmd, id_):
             if node.get_state() == strings.state_closed:
-                return strings.cmd_refsb
-            return strings.cmd_pre
+                return self.cmd.refsb
+            return self.cmd.pre
         
         def prereq_rank_pde(node: DRAM, cmd, id_):
             node_state = node.get_state()
             if node_state == strings.state_powerup:
-                return strings.cmd_pde
+                return self.cmd.pde
             elif node_state == strings.state_actpowerdown:
-                return strings.cmd_pde
+                return self.cmd.pde
             elif node_state == strings.state_prepowerdown:
-                return strings.cmd_pde
+                return self.cmd.pde
             elif node_state == strings.state_selfrefresh:
-                return strings.cmd_srx
+                return self.cmd.srx
             else:
                 raise Exception(node_state)
         
         def prereq_rank_sre(node: DRAM, cmd, id_):
             node_state = node.get_state()
             if node_state == strings.state_powerup:
-                return strings.cmd_sre
+                return self.cmd.sre
             elif node_state == strings.state_actpowerdown:
-                return strings.cmd_pdx
+                return self.cmd.pdx
             elif node_state == strings.state_prepowerdown:
-                return strings.cmd_pde
+                return self.cmd.pde
             elif node_state == strings.state_selfrefresh:
-                return strings.cmd_sre
+                return self.cmd.sre
             else:
                 raise Exception(node_state)
         
-        self.prereq[strings.level_bank][strings.cmd_rd] = prereq_bank_rd
-        self.prereq[strings.level_rank][strings.cmd_rd] = prereq_rank_rd
-        self.prereq[strings.level_bank][strings.cmd_wr] = prereq_bank_rd
-        self.prereq[strings.level_rank][strings.cmd_wr] = prereq_rank_rd
+        self.prereq[self.level.bank][self.cmd.rd] = prereq_bank_rd
+        self.prereq[self.level.rank][self.cmd.rd] = prereq_rank_rd
+        self.prereq[self.level.bank][self.cmd.wr] = prereq_bank_rd
+        self.prereq[self.level.rank][self.cmd.wr] = prereq_rank_rd
         
-        self.prereq[strings.level_rank][strings.cmd_ref] = prereq_rank_ref
-        self.prereq[strings.level_bank][strings.cmd_refsb] = prereq_bank_refsb
-        self.prereq[strings.level_rank][strings.cmd_pde] = prereq_rank_pde
-        self.prereq[strings.level_rank][strings.cmd_sre] = prereq_rank_sre
+        self.prereq[self.level.rank][self.cmd.ref] = prereq_rank_ref
+        self.prereq[self.level.bank][self.cmd.refsb] = prereq_bank_refsb
+        self.prereq[self.level.rank][self.cmd.pde] = prereq_rank_pde
+        self.prereq[self.level.rank][self.cmd.sre] = prereq_rank_sre
     
     def _init_rowhit(self):
         from offchip.dram_module import DRAM
@@ -223,8 +225,8 @@ class BaseSpec(object):
             else:
                 raise Exception(node_state)
         
-        self.rowhit[strings.level_bank][strings.cmd_rd] = rowhit
-        self.rowhit[strings.level_bank][strings.cmd_wr] = rowhit
+        self.rowhit[self.level.bank][self.cmd.rd] = rowhit
+        self.rowhit[self.level.bank][self.cmd.wr] = rowhit
     
     def _init_rowopen(self):
         from offchip.dram_module import DRAM
@@ -238,8 +240,8 @@ class BaseSpec(object):
             else:
                 raise Exception(node_state)
         
-        self.rowopen[strings.level_bank][strings.cmd_rd] = rowopen
-        self.rowopen[strings.level_bank][strings.cmd_wr] = rowopen
+        self.rowopen[self.level.bank][self.cmd.rd] = rowopen
+        self.rowopen[self.level.bank][self.cmd.wr] = rowopen
     
     def _init_lambda(self):
         from offchip.dram_module import DRAM
@@ -282,158 +284,158 @@ class BaseSpec(object):
         def lambda_rank_sre(node: DRAM, id_):
             node.set_state(strings.state_selfrefresh)
         
-        self.lambda_[strings.level_bank][strings.cmd_act] = lambda_bank_act
-        self.lambda_[strings.level_bank][strings.cmd_pre] = lambda_bank_pre
-        self.lambda_[strings.level_rank][strings.cmd_prea] = lambda_rank_prea
-        self.lambda_[strings.level_rank][strings.cmd_ref] = lambda_rank_ref
-        self.lambda_[strings.level_bank][strings.cmd_rd] = lambda_bank_rd
-        self.lambda_[strings.level_bank][strings.cmd_wr] = lambda_bank_wr
-        self.lambda_[strings.level_bank][strings.cmd_rda] = lambda_bank_pre
-        self.lambda_[strings.level_bank][strings.cmd_wra] = lambda_bank_pre
-        self.lambda_[strings.level_rank][strings.cmd_pde] = lambda_rank_pde
-        self.lambda_[strings.level_rank][strings.cmd_pdx] = lambda_rank_pdx
-        self.lambda_[strings.level_rank][strings.cmd_sre] = lambda_rank_sre
-        self.lambda_[strings.level_rank][strings.cmd_srx] = lambda_rank_pdx
+        self.lambda_[self.level.bank][self.cmd.act] = lambda_bank_act
+        self.lambda_[self.level.bank][self.cmd.pre] = lambda_bank_pre
+        self.lambda_[self.level.rank][self.cmd.prea] = lambda_rank_prea
+        self.lambda_[self.level.rank][self.cmd.ref] = lambda_rank_ref
+        self.lambda_[self.level.bank][self.cmd.rd] = lambda_bank_rd
+        self.lambda_[self.level.bank][self.cmd.wr] = lambda_bank_wr
+        self.lambda_[self.level.bank][self.cmd.rda] = lambda_bank_pre
+        self.lambda_[self.level.bank][self.cmd.wra] = lambda_bank_pre
+        self.lambda_[self.level.rank][self.cmd.pde] = lambda_rank_pde
+        self.lambda_[self.level.rank][self.cmd.pdx] = lambda_rank_pdx
+        self.lambda_[self.level.rank][self.cmd.sre] = lambda_rank_sre
+        self.lambda_[self.level.rank][self.cmd.srx] = lambda_rank_pdx
     
     def _init_timing(self):
         s = self.speed_entry
         # Channel
-        t = self.timing[strings.level_channel]
+        t = self.timing[self.level.channel]
         
         # CAS <-> CAS
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_rd, 1, s.nBL))
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_rda, 1, s.nBL))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_rd, 1, s.nBL))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_rda, 1, s.nBL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wr, 1, s.nBL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wra, 1, s.nBL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wr, 1, s.nBL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wra, 1, s.nBL))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.rd, 1, s.nBL))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.rda, 1, s.nBL))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.rd, 1, s.nBL))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.rda, 1, s.nBL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wr, 1, s.nBL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wra, 1, s.nBL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wr, 1, s.nBL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wra, 1, s.nBL))
         
         # Rank
-        t = self.timing[strings.level_rank]
+        t = self.timing[self.level.rank]
         
         # CAS <-> CAS
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_rd, 1, s.nCCDS))
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_rda, 1, s.nCCDS))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_rd, 1, s.nCCDS))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_rda, 1, s.nCCDS))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wr, 1, s.nCCDS))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wra, 1, s.nCCDS))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wr, 1, s.nCCDS))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wra, 1, s.nCCDS))
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_wr, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_wra, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_wr, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_wra, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_rd, 1, s.nCWL + s.nBL + s.nWTRS))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_rda, 1, s.nCWL + s.nBL + s.nWTRS))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_rd, 1, s.nCWL + s.nBL + s.nWTRS))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_rda, 1, s.nCWL + s.nBL + s.nWTRS))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.rd, 1, s.nCCDS))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.rda, 1, s.nCCDS))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.rd, 1, s.nCCDS))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.rda, 1, s.nCCDS))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wr, 1, s.nCCDS))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wra, 1, s.nCCDS))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wr, 1, s.nCCDS))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wra, 1, s.nCCDS))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.wr, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.wra, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.wr, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.wra, 1, s.nCL + s.nCCDS + 2 - s.nCWL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.rd, 1, s.nCWL + s.nBL + s.nWTRS))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.rda, 1, s.nCWL + s.nBL + s.nWTRS))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.rd, 1, s.nCWL + s.nBL + s.nWTRS))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.rda, 1, s.nCWL + s.nBL + s.nWTRS))
         
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_prea, 1, s.nRTP))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_prea, 1, s.nCWL + s.nBL + s.nWR))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.prea, 1, s.nRTP))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.prea, 1, s.nCWL + s.nBL + s.nWR))
         
         # CAS <-> PD
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_pde, 1, s.nCL + s.nBL + 1))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_pde, 1, s.nCL + s.nBL + 1))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_pde, 1, s.nCWL + s.nBL + s.nWR))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_pde, 1, s.nCWL + s.nBL + s.nWR + 1))  # +1 for pre
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_rd, 1, s.nXP))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_rda, 1, s.nXP))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_wr, 1, s.nXP))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_wra, 1, s.nXP))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.pde, 1, s.nCL + s.nBL + 1))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.pde, 1, s.nCL + s.nBL + 1))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.pde, 1, s.nCWL + s.nBL + s.nWR))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.pde, 1, s.nCWL + s.nBL + s.nWR + 1))  # +1 for pre
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.rd, 1, s.nXP))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.rda, 1, s.nXP))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.wr, 1, s.nXP))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.wra, 1, s.nXP))
         
         # CAS <-> SR: none(all banks have to be pre-charged)
         
         # RAS <-> RAS
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_act, 1, s.nRRDS))
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_act, 4, s.nFAW))
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_prea, 1, s.nRAS))
-        t[strings.cmd_prea].append(TimingEntry(strings.cmd_act, 1, s.nRP))
+        t[self.cmd.act].append(TimingEntry(self.cmd.act, 1, s.nRRDS))
+        t[self.cmd.act].append(TimingEntry(self.cmd.act, 4, s.nFAW))
+        t[self.cmd.act].append(TimingEntry(self.cmd.prea, 1, s.nRAS))
+        t[self.cmd.prea].append(TimingEntry(self.cmd.act, 1, s.nRP))
         
         # RAS <-> REF
-        t[strings.cmd_pre].append(TimingEntry(strings.cmd_ref, 1, s.nRP))
-        t[strings.cmd_prea].append(TimingEntry(strings.cmd_ref, 1, s.nRP))
-        t[strings.cmd_ref].append(TimingEntry(strings.cmd_act, 1, s.nRFC))
+        t[self.cmd.pre].append(TimingEntry(self.cmd.ref, 1, s.nRP))
+        t[self.cmd.prea].append(TimingEntry(self.cmd.ref, 1, s.nRP))
+        t[self.cmd.ref].append(TimingEntry(self.cmd.act, 1, s.nRFC))
         
         # RAS <-> PD
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_pde, 1, 1))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_act, 1, s.nXP))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_pre, 1, s.nXP))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_prea, 1, s.nXP))
+        t[self.cmd.act].append(TimingEntry(self.cmd.pde, 1, 1))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.act, 1, s.nXP))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.pre, 1, s.nXP))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.prea, 1, s.nXP))
         
         # RAS <-> SR
-        t[strings.cmd_pre].append(TimingEntry(strings.cmd_sre, 1, s.nRP))
-        t[strings.cmd_prea].append(TimingEntry(strings.cmd_sre, 1, s.nRP))
-        t[strings.cmd_srx].append(TimingEntry(strings.cmd_act, 1, s.nXS))
+        t[self.cmd.pre].append(TimingEntry(self.cmd.sre, 1, s.nRP))
+        t[self.cmd.prea].append(TimingEntry(self.cmd.sre, 1, s.nRP))
+        t[self.cmd.srx].append(TimingEntry(self.cmd.act, 1, s.nXS))
         
         # REF <-> REF
-        t[strings.cmd_ref].append(TimingEntry(strings.cmd_ref, 1, s.nRFC))
+        t[self.cmd.ref].append(TimingEntry(self.cmd.ref, 1, s.nRFC))
         
         # REF <-> PD
-        t[strings.cmd_ref].append(TimingEntry(strings.cmd_pde, 1, 1))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_ref, 1, s.nXP))
+        t[self.cmd.ref].append(TimingEntry(self.cmd.pde, 1, 1))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.ref, 1, s.nXP))
         
         # REF <-> SR
-        t[strings.cmd_srx].append(TimingEntry(strings.cmd_ref, 1, s.nXS))
+        t[self.cmd.srx].append(TimingEntry(self.cmd.ref, 1, s.nXS))
         
         # PD <-> PD
-        t[strings.cmd_pde].append(TimingEntry(strings.cmd_pdx, 1, s.nPD))
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_pde, 1, s.nXP))
+        t[self.cmd.pde].append(TimingEntry(self.cmd.pdx, 1, s.nPD))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.pde, 1, s.nXP))
         
         # PD <-> SR
-        t[strings.cmd_pdx].append(TimingEntry(strings.cmd_sre, 1, s.nXP))
-        t[strings.cmd_srx].append(TimingEntry(strings.cmd_pde, 1, s.nXS))
+        t[self.cmd.pdx].append(TimingEntry(self.cmd.sre, 1, s.nXP))
+        t[self.cmd.srx].append(TimingEntry(self.cmd.pde, 1, s.nXS))
         
         # SR <-> SR
-        t[strings.cmd_sre].append(TimingEntry(strings.cmd_srx, 1, s.nCKESR))
-        t[strings.cmd_srx].append(TimingEntry(strings.cmd_sre, 1, s.nXS))
+        t[self.cmd.sre].append(TimingEntry(self.cmd.srx, 1, s.nCKESR))
+        t[self.cmd.srx].append(TimingEntry(self.cmd.sre, 1, s.nXS))
         
         # Bank Group
-        t = self.timing[strings.level_bankgroup]
+        t = self.timing[self.level.bankgroup]
         # CAS <-> CAS
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_rd, 1, s.nCCDL))
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_rda, 1, s.nCCDL))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_rd, 1, s.nCCDL))
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_rda, 1, s.nCCDL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wr, 1, s.nCCDL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wra, 1, s.nCCDL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wr, 1, s.nCCDL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wra, 1, s.nCCDL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wr, 1, s.nCCDL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_wra, 1, s.nCCDL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wr, 1, s.nCCDL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_wra, 1, s.nCCDL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_rd, 1, s.nCWL + s.nBL + s.nWTRL))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_rda, 1, s.nCWL + s.nBL + s.nWTRL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_rd, 1, s.nCWL + s.nBL + s.nWTRL))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_rda, 1, s.nCWL + s.nBL + s.nWTRL))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.rd, 1, s.nCCDL))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.rda, 1, s.nCCDL))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.rd, 1, s.nCCDL))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.rda, 1, s.nCCDL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wr, 1, s.nCCDL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wra, 1, s.nCCDL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wr, 1, s.nCCDL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wra, 1, s.nCCDL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wr, 1, s.nCCDL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.wra, 1, s.nCCDL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wr, 1, s.nCCDL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.wra, 1, s.nCCDL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.rd, 1, s.nCWL + s.nBL + s.nWTRL))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.rda, 1, s.nCWL + s.nBL + s.nWTRL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.rd, 1, s.nCWL + s.nBL + s.nWTRL))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.rda, 1, s.nCWL + s.nBL + s.nWTRL))
         
         # RAS <-> RAS
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_act, 1, s.nRRDL))
+        t[self.cmd.act].append(TimingEntry(self.cmd.act, 1, s.nRRDL))
         
         # Bank
-        t = self.timing[strings.level_bank]
+        t = self.timing[self.level.bank]
         
         # CAS <-> RAS
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_rd, 1, s.nRCDR))
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_rda, 1, s.nRCDR))
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_wr, 1, s.nRCDW))
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_wra, 1, s.nRCDW))
+        t[self.cmd.act].append(TimingEntry(self.cmd.rd, 1, s.nRCDR))
+        t[self.cmd.act].append(TimingEntry(self.cmd.rda, 1, s.nRCDR))
+        t[self.cmd.act].append(TimingEntry(self.cmd.wr, 1, s.nRCDW))
+        t[self.cmd.act].append(TimingEntry(self.cmd.wra, 1, s.nRCDW))
         
-        t[strings.cmd_rd].append(TimingEntry(strings.cmd_pre, 1, s.nRTP))
-        t[strings.cmd_wr].append(TimingEntry(strings.cmd_pre, 1, s.nCWL + s.nBL + s.nWR))
+        t[self.cmd.rd].append(TimingEntry(self.cmd.pre, 1, s.nRTP))
+        t[self.cmd.wr].append(TimingEntry(self.cmd.pre, 1, s.nCWL + s.nBL + s.nWR))
         
-        t[strings.cmd_rda].append(TimingEntry(strings.cmd_act, 1, s.nRTP + s.nRP))
-        t[strings.cmd_wra].append(TimingEntry(strings.cmd_act, 1, s.nCWL + s.nBL + s.nWR + s.nRP))
+        t[self.cmd.rda].append(TimingEntry(self.cmd.act, 1, s.nRTP + s.nRP))
+        t[self.cmd.wra].append(TimingEntry(self.cmd.act, 1, s.nCWL + s.nBL + s.nWR + s.nRP))
         
         # RAS <-> RAS
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_act, 1, s.nRC))
-        t[strings.cmd_act].append(TimingEntry(strings.cmd_pre, 1, s.nRAS))
-        t[strings.cmd_pre].append(TimingEntry(strings.cmd_act, 1, s.nRP))
+        t[self.cmd.act].append(TimingEntry(self.cmd.act, 1, s.nRC))
+        t[self.cmd.act].append(TimingEntry(self.cmd.pre, 1, s.nRAS))
+        t[self.cmd.pre].append(TimingEntry(self.cmd.act, 1, s.nRP))
         
         # REFSB
-        t[strings.cmd_pre].append(TimingEntry(strings.cmd_refsb, 1, s.nRP))
-        t[strings.cmd_refsb].append(TimingEntry(strings.cmd_refsb, 1, s.nRFC))
-        t[strings.cmd_refsb].append(TimingEntry(strings.cmd_act, 1, s.nRFC))
+        t[self.cmd.pre].append(TimingEntry(self.cmd.refsb, 1, s.nRP))
+        t[self.cmd.refsb].append(TimingEntry(self.cmd.refsb, 1, s.nRFC))
+        t[self.cmd.refsb].append(TimingEntry(self.cmd.act, 1, s.nRFC))

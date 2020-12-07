@@ -5,7 +5,7 @@ from configs import strings, sim_help
 
 
 class ArgumentParser(Tap):
-    name_spec: str = strings.spec_hbm
+    name_spec: str = strings.standard.hbm
     org: str = ''
     speed: str = ''
     mapping: str = 'defaultmapping'
@@ -23,7 +23,7 @@ class ArgumentParser(Tap):
 
 
 def parse_config(args_):
-    filename = 'offchip/configs/{}-config.txt'.format(args_.name_spec.upper())
+    filename = 'offchip/configs/{}-config.txt'.format(args_.name_spec.value.upper())
     if not os.path.exists(filename):
         raise Exception('Bad config file')
     with open(filename, 'r') as f:
@@ -80,7 +80,7 @@ def main(args_, spec_: BaseSpec, trace_: Trace):
     from offchip.dram_module import DRAM
     ctrls = []
     for i in range(args_.num_channels):
-        channel = DRAM(spec_, strings.org_channel, 0, i)
+        channel = DRAM(spec_, BaseSpec.level.channel, i)
         ctrl = Controller(args_, channel)
         ctrls.append(ctrl)
     MAH.initialize(args_, ctrls)
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     trace_file = 'dram.trace'
     
     name_spec = Argument.args.name_spec
-    if name_spec == strings.spec_hbm:
+    if name_spec == strings.standard.hbm:
         Standard = BaseSpec
     else:
         raise Exception(name_spec)

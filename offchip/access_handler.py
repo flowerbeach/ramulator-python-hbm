@@ -31,9 +31,6 @@ class MemAccHan(object):
     __ctrls = []  # type: List[Controller]
     __spec = None  # type: BaseSpec
     
-    list_level_spec = []
-    dict_idx_level_spec = []
-    
     @staticmethod
     def initialize(args_: ArgumentParser, ctrls: List[Controller]):
         assert MemAccHan.__initialized == False
@@ -42,8 +39,6 @@ class MemAccHan(object):
         MemAccHan.__ctrls = ctrls
         MemAccHan.__spec = ctrls[0].spec
         assert args_.name_spec == MemAccHan.__spec.name_spec
-        MemAccHan.list_level_spec = strings.dict_list_level_spec[MemAccHan.__spec.name_spec]
-        MemAccHan.dict_idx_level_spec = strings.dict_dict_idx_level_spec[MemAccHan.__spec.name_spec]
         
         sz = MemAccHan.__spec.org_entry.count
         assert (sz[0] & (sz[0] - 1)) == 0
@@ -54,8 +49,7 @@ class MemAccHan(object):
         assert (1 << MemAccHan.tx_bits) == tx
         
         MemAccHan._max_address = MemAccHan.__spec.channel_width / 8
-        len_level = len(MemAccHan.list_level_spec)
-        for level_i in range(len_level):
+        for level_i in range(len(BaseSpec.level)):
             MemAccHan._addr_bits.append(config.calc_log2(sz[level_i]))
             if sz[level_i] != 0:
                 MemAccHan._max_address *= sz[level_i]
@@ -106,24 +100,22 @@ class MemAccHan(object):
         if MemAccHan.__ctrls[request.addr_list[0]].enqueue(request) is True:
             # request enqueued successfully
             MemAccHan.flag_stall = False
-            if type_ == strings.req_type_read:
+            if type_ == Request.Type.read:
                 if device not in MemAccHan._num_reads_device.keys():
                     MemAccHan._num_reads_device[device] = 1
                 else:
                     MemAccHan._num_reads_device[device] += 1
                 
-                idx_channel = request.addr_list[
-                    MemAccHan.list_level_spec.index(strings.level_channel)]
+                idx_channel = request.addr_list[BaseSpec.level.channel.value]
                 if device not in MemAccHan._num_reads_channel.keys():
                     MemAccHan._num_reads_channel[idx_channel] = 1
                 else:
                     MemAccHan._num_reads_channel[idx_channel] += 1
-            elif type_ == strings.req_type_write:
+            elif type_ == Request.Type.write:
                 if device not in MemAccHan._num_writes_device.keys():
                     MemAccHan._num_writes_device[device] = 1
                 else:
                     MemAccHan._num_writes_device[device] += 1
-            
             else:
                 raise Exception(type_)
         else:
@@ -144,7 +136,7 @@ class MemAccHan(object):
     def finish():
         spec = MemAccHan.__spec
         sz = spec.org_entry.count
-        idx_channel = MemAccHan.list_level_spec.index(strings.level_channel)
+        idx_channel = BaseSpec.level.channel.value
         MemAccHan._max_bandwidth = \
             spec.speed_entry.rate * 1e6 * spec.channel_width * sz[idx_channel] / 8
         for ctrl in MemAccHan.__ctrls:
