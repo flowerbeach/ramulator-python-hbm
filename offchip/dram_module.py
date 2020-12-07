@@ -17,6 +17,7 @@ class DRAM(object):
         self.children = []  # type: List[DRAM]
         self.row_state = {}
         
+        self.serving_requests = 0
         self.cur_serving_requests = 0
         self.begin_of_serving = -1
         self.end_of_serving = -1
@@ -138,8 +139,41 @@ class DRAM(object):
     def update(self):
         raise Exception('todo')
     
-    def update_serving_requests(self):
-        raise Exception('todo')
+    def update_serving_requests(self, addr_list, delta, cycle_curr):
+        assert self.id_ == addr_list[self.level.value]
+        assert delta in [1, -1]
+        
+        # update total serving requests
+        if self.begin_of_cur_reqcnt != -1 and self.cur_serving_requests > 0:
+            self.serving_requests += (cycle_curr - self.begin_of_cur_reqcnt) * self.cur_serving_requests
+            self._num_cycles_active += cycle_curr - self.begin_of_cur_reqcnt
+        
+        # update begin of current request number
+        self.begin_of_cur_reqcnt = cycle_curr
+        self.cur_serving_requests += delta
+        assert self.cur_serving_requests >= 0
+        
+        if delta == 1 and self.cur_serving_requests == 1:
+            # transform from inactive to active
+            self.begin_of_serving = cycle_curr
+            if self.end_of_refreshing > self.begin_of_serving:
+                self._num_cycles_overlap += self.end_of_refreshing - self.begin_of_serving
+        elif self.cur_serving_requests == 0:
+            # transform from active to inactive
+            assert self.begin_of_serving != -1
+            assert delta == -1
+            self._num_cycles_active += cycle_curr - self.begin_of_cur_reqcnt
+            self.end_of_serving = cycle_curr
+            
+            for ref in self.refresh_intervals:
+                self._num_cycles_overlap += min(self.end_of_serving, ref[1]) - ref[0]
+            self.refresh_intervals = []
+        
+        child_id = addr_list[self.level.value + 1]
+        # We only count the level bank or the level higher than bank
+        if child_id < 0 or len(self.children) == 0 or self.level.value > DRAM.t_spec.level.bank.value:
+            return
+        self.children[child_id].update_serving_requests(addr_list, delta, cycle_curr)
     
     def finish(self, num_cycles):
         self._num_cycles_busy.scalar = self._num_cycles_active.scalar + \

@@ -1,3 +1,4 @@
+import copy
 from typing import List
 from configs import strings
 from offchip.data_structure import Request
@@ -12,6 +13,12 @@ class Controller(object):
         
         def size(self):
             return len(self.queue_requests)
+        
+        def get_i(self, i):
+            return self.queue_requests[i]
+        
+        def pop_i(self, i=0):
+            return self.queue_requests.pop(i)
     
     def __init__(self, args_, channel: DRAM):
         from offchip.schedule import Scheduler, RowTable, RowPolicy
@@ -109,7 +116,35 @@ class Controller(object):
         return True
     
     def cycle(self):
-        raise Exception('todo')
+        self.cycle_current += 1
+        
+        # 1. Serve completed reads
+        if self.pending_reads.size() > 0:
+            req = self.pending_reads.get_i(0)
+            if req.cycle_depart <= self.cycle_current:
+                if req.cycle_depart - req.cycle_arrive > 1:  # this request really accessed a row
+                    self._latency_read_sum += req.cycle_depart - req.cycle_arrive
+                    self.channel.update_serving_requests(req.addr_list, -1, self.cycle_current)
+                req.callback(req)  # todo callback
+                self.pending_reads.pop_i(0)
+        
+        # 2. Refresh scheduler
+        self.refresh.cycle()
+        
+        # 3. Should we schedule writes?
+        if self.write_mode is False:
+            # write queue is almost full or read queue is empty
+            if self.queue_write.size() > int(self.wr_high_watermark * self.queue_write.max) or self.queue_read.size() == 0:
+                self.write_mode = True
+        else:
+            # write queue is almost empty and read queue is not empty
+            if self.queue_write.size() < int(self.wr_low_watermark * self.queue_write.max) and self.queue_read.size() != 0:
+                self.write_mode = False
+        
+        # 4. Find the best command to schedule, if any
+        queue = self.queue_activate
+        req = self.scheduler.get_head(queue.queue_requests)
+        is_valid_req = (req is not None)
     
     def is_ready_req(self, request: Request):
         cmd = self._get_first_cmd(request)
