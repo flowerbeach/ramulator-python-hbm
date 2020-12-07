@@ -19,9 +19,9 @@ class BaseStatistic(object):
 
 
 class ScalarStatistic(BaseStatistic):
-    def __init__(self, init_scalar: int):
+    def __init__(self, init_scalar):
         super(ScalarStatistic, self).__init__()
-        assert type(init_scalar) == int
+        assert type(init_scalar) in [int, float]
         self.scalar = init_scalar
 
 

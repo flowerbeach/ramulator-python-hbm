@@ -4,24 +4,9 @@ from offchip.memory_data_structure import Request
 from offchip.memory_module import DRAM
 
 
-class Scheduler(object):
-    def __init__(self, controller):
-        pass
-
-
-class RowPolicy(object):
-    def __init__(self, controller):
-        pass
-
-
-class RowTable(object):
-    def __init__(self, controller):
-        pass
-
-
 class Refresh(object):
     def __init__(self, controller):
-        pass
+        raise Exception('todo')
 
 
 class Controller(object):
@@ -34,13 +19,15 @@ class Controller(object):
             return len(self.queue_requests)
     
     def __init__(self, args_, channel: DRAM):
+        from offchip.schedule import Scheduler, RowTable, RowPolicy
+        
         self.num_cycles = 0
         self.channel = channel
+        self.spec = channel.spec
         self.scheduler = Scheduler(self)
         self.row_policy = RowPolicy(self)
         self.row_table = RowTable(self)
         self.refresh = Refresh(self)
-        self.spec = channel.spec
         
         self.queue_read = Controller.Queue()
         self.queue_write = Controller.Queue()
@@ -126,41 +113,48 @@ class Controller(object):
         return True
     
     def cycle(self):
-        pass
+        raise Exception('todo')
     
-    def is_ready(self, command, addr_vec):
-        pass
+    def is_ready_req(self, request: Request):
+        raise Exception('todo')
     
-    def is_row_hit(self):
-        pass
+    def is_ready_cmd(self, command, addr_vec):
+        raise Exception('todo')
     
-    def is_row_open(self):
-        pass
+    def is_row_hit_req(self, request: Request):
+        raise Exception('todo')
+    
+    def is_row_hit_cmd(self, command, addr_vec):
+        raise Exception('todo')
+    
+    def is_row_open_req(self, request: Request):
+        raise Exception('todo')
     
     def is_active(self):
-        pass
+        raise Exception('todo')
     
     def is_refresh(self):
-        pass
+        raise Exception('todo')
     
     def set_high_writeq_watermark(self, mark):
-        pass
+        raise Exception('todo')
     
     def set_low_writeq_watermark(self, mark):
-        pass
+        raise Exception('todo')
     
     #
+    
     def _get_first_cmd(self):
-        pass
+        raise Exception('todo')
     
     def _cmd_issue_autoprecharge(self):
-        pass
+        raise Exception('todo')
     
     def _issue_cmd(self):
-        pass
+        raise Exception('todo')
     
     def _get_addr_vec(self):
-        pass
+        raise Exception('todo')
     
     def print_state(self):
         print('   queue_read: {}'.format(self.queue_read.size()))

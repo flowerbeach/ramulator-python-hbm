@@ -1,6 +1,7 @@
 from typing import List
 from configs import strings
 from offchip.dram_spec.spec_base import BaseSpec
+from configs.stat_data_structure import ScalarStatistic
 
 
 class DRAM(object):
@@ -31,6 +32,13 @@ class DRAM(object):
         self._next = []
         self._prev = {}
         self._state = None
+        
+        self._num_cycles_busy = ScalarStatistic(0)
+        self._num_cycles_active = ScalarStatistic(0)
+        self._num_cycles_refresh = ScalarStatistic(0)
+        self._num_cycles_overlap = ScalarStatistic(0)
+        self._num_reqs_served = ScalarStatistic(0)
+        self._avg_reqs_served = ScalarStatistic(0)
         
         self.initialize()
     
@@ -69,32 +77,51 @@ class DRAM(object):
         child.id_ = len(self.children)
         self.children.append(child)
     
-    def decode(self):
-        pass
+    def decode(self, cmd_idx, addr: list):
+        child_id = addr[self.level_idx + 1]
+        if self._prereq[cmd_idx] is not None:
+            prereq_cmd = self._prereq[cmd_idx](self, cmd_idx, child_id)
+            if prereq_cmd is not None:
+                # stop recursion: there is a prerequisite at this level
+                return prereq_cmd
+        
+        if child_id < 0 or len(self.children) == 0:
+            # stop recursion: there were no prequisites at any level
+            return cmd_idx
+        
+        # recursively decode at my child
+        return self.children[child_id].decode(cmd_idx, addr)
     
     def check(self):
-        pass
+        raise Exception('todo')
     
     def check_row_hit(self):
-        pass
+        raise Exception('todo')
     
     def check_row_open(self):
-        pass
+        raise Exception('todo')
     
     def get_next(self):
-        pass
+        raise Exception('todo')
     
     def update(self):
-        pass
+        raise Exception('todo')
     
     def update_serving_requests(self):
-        pass
+        raise Exception('todo')
     
     def finish(self, num_cycles):
-        pass
+        self._num_cycles_busy.scalar = self._num_cycles_active.scalar + \
+                                       self._num_cycles_refresh.scalar + \
+                                       self._num_cycles_overlap.scalar
+        self._avg_reqs_served.scalar = self._num_reqs_served.scalar / num_cycles
+        if len(self.children) == 0:
+            return
+        for child in self.children:
+            child.finish(num_cycles)
     
     def get_state(self):
         return self._state
     
-    def set_state(self, state):
-        self._state = state
+    # def set_state(self, state):
+    #     self._state = state

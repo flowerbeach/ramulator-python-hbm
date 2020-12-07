@@ -1,9 +1,35 @@
 from typing import Dict, List
 from offchip.dram_spec.spec_data_structure import TimingEntry, SpeedEntry, OrgEntry
 from configs import strings
+from enum import Enum, unique
 
 
 class BaseSpec(object):
+    @unique
+    class cmd(Enum):
+        act = 0
+        pre = 1
+        prea = 2
+        rd = 3
+        rda = 4
+        wr = 5
+        wra = 6
+        ref = 7
+        refsb = 8
+        pde = 9
+        pdx = 10
+        sre = 11
+        srx = 12
+    
+    @unique
+    class level(Enum):
+        channel = 0
+        rank = 1
+        bankgroup = 2
+        bank = 3
+        row = 4
+        column = 5
+    
     def __init__(self, args):
         self.name_spec = args.name_spec
         assert self.name_spec in strings.list_spec
@@ -41,6 +67,12 @@ class BaseSpec(object):
         self.prefetch_size = 4  # burst length could be 2 and 4 (choose 4 here), 2n prefetch
         self.channel_width = 128
         
+        self.scope = [
+            strings.level_row, strings.level_bank, strings.level_rank,
+            strings.level_column, strings.level_column, strings.level_column, strings.level_column,
+            strings.level_rank, strings.level_bank, strings.level_rank, strings.level_rank, strings.level_rank, strings.level_rank
+        ]
+        
         self._init_speed()
         self._init_prereq()
         self._init_rowhit()
@@ -49,13 +81,13 @@ class BaseSpec(object):
         self._init_timing()
     
     @staticmethod
-    def is_opening(self, cmd):
+    def is_opening(cmd):
         if cmd in [strings.cmd_act]:
             return True
         return False
     
     @staticmethod
-    def is_accessing(self, cmd):
+    def is_accessing(cmd):
         if cmd in [strings.cmd_rd,
                    strings.cmd_wr,
                    strings.cmd_rda,
@@ -73,7 +105,7 @@ class BaseSpec(object):
         return False
     
     @staticmethod
-    def is_refreshing(self, cmd):
+    def is_refreshing(cmd):
         if cmd in [strings.cmd_ref,
                    strings.cmd_refsb]:
             return True
