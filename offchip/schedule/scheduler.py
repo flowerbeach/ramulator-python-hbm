@@ -1,13 +1,13 @@
 from typing import List
 from configs import strings
-from offchip.memory_data_structure import Request
-from offchip.dram_spec import BaseSpec
+from offchip.data_structure import Request
+from offchip.standard import BaseSpec
 from enum import Enum, unique
 
 
 class Scheduler(object):
-    from offchip.memory_controller import Controller
-    from offchip.dram_spec import BaseSpec as t_spec
+    from offchip.controller import Controller
+    from offchip.standard import BaseSpec as t_spec
     
     @unique
     class Type(Enum):

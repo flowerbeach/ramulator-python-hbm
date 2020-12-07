@@ -1,6 +1,6 @@
 from typing import List
 from configs import strings
-from offchip.dram_spec.spec_base import BaseSpec
+from offchip.standard.spec_base import BaseSpec
 from configs.stat_data_structure import ScalarStatistic
 
 

@@ -1,10 +1,10 @@
 import copy
 from typing import List
 from configs import strings, config
-from offchip.dram_spec import BaseSpec
+from offchip.standard import BaseSpec
 from configs.stat_data_structure import ScalarStatistic
-from offchip.memory_data_structure import Request
-from offchip.memory_controller import Controller
+from offchip.data_structure import Request
+from offchip.controller import Controller
 from main import ArgumentParser
 
 

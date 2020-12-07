@@ -1,11 +1,11 @@
 from typing import List, Dict
 from configs import strings
-from offchip.memory_data_structure import Request
+from offchip.data_structure import Request
 
 
 class RowTable(object):
-    from offchip.memory_controller import Controller
-    from offchip.dram_spec import BaseSpec as t_spec
+    from offchip.controller import Controller
+    from offchip.standard import BaseSpec as t_spec
     
     class Entry(object):
         def __init__(self, row, hits, timestamp):

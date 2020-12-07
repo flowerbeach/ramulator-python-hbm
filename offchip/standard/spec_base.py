@@ -1,5 +1,5 @@
 from typing import Dict, List
-from offchip.dram_spec.spec_data_structure import TimingEntry, SpeedEntry, OrgEntry
+from offchip.standard.spec_data_structure import TimingEntry, SpeedEntry, OrgEntry
 from configs import strings
 from enum import Enum, unique
 
@@ -134,7 +134,7 @@ class BaseSpec(object):
         self.speed_entry.nXS = XS_TABLE[speed * len_speed + density]
     
     def _init_prereq(self):
-        from offchip.memory_module import DRAM
+        from offchip.dram_module import DRAM
         
         def prereq_rank_rd(node: DRAM, cmd, id_):
             node_state = node.get_state()
@@ -210,7 +210,7 @@ class BaseSpec(object):
         self.prereq[strings.level_rank][strings.cmd_sre] = prereq_rank_sre
     
     def _init_rowhit(self):
-        from offchip.memory_module import DRAM
+        from offchip.dram_module import DRAM
         
         def rowhit(node: DRAM, cmd, id_):
             node_state = node.get_state()
@@ -227,7 +227,7 @@ class BaseSpec(object):
         self.rowhit[strings.level_bank][strings.cmd_wr] = rowhit
     
     def _init_rowopen(self):
-        from offchip.memory_module import DRAM
+        from offchip.dram_module import DRAM
         
         def rowopen(node: DRAM, cmd, id_):
             node_state = node.get_state()
@@ -242,7 +242,7 @@ class BaseSpec(object):
         self.rowopen[strings.level_bank][strings.cmd_wr] = rowopen
     
     def _init_lambda(self):
-        from offchip.memory_module import DRAM
+        from offchip.dram_module import DRAM
         
         def lambda_bank_act(node: DRAM, id_):
             node.set_state(strings.state_opened)

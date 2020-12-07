@@ -23,7 +23,7 @@ class ArgumentParser(Tap):
 
 
 def parse_config(args_):
-    filename = 'offchip/standard/{}-config.txt'.format(args_.name_spec.upper())
+    filename = 'offchip/configs/{}-config.txt'.format(args_.name_spec.upper())
     if not os.path.exists(filename):
         raise Exception('Bad config file')
     with open(filename, 'r') as f:
@@ -67,17 +67,17 @@ def parse_config(args_):
 
 class Argument(object):
     args = parse_config(
-        ArgumentParser(description='simulation - dram_spec').parse_args())
+        ArgumentParser(description='simulation - DRAM').parse_args())
 
 
-from offchip.dram_spec.spec_base import BaseSpec
-from offchip.memory_data_structure import Request, Trace
+from offchip.standard.spec_base import BaseSpec
+from offchip.data_structure import Request, Trace
 
 
 def main(args_, spec_: BaseSpec, trace_: Trace):
-    from offchip.memory_access_handler import MemAccHan as MAH
-    from offchip.memory_controller import Controller
-    from offchip.memory_module import DRAM
+    from offchip.access_handler import MemAccHan as MAH
+    from offchip.controller import Controller
+    from offchip.dram_module import DRAM
     ctrls = []
     for i in range(args_.num_channels):
         channel = DRAM(spec_, strings.org_channel, 0, i)

@@ -1,7 +1,7 @@
 from typing import List
 from configs import strings
-from offchip.memory_data_structure import Request
-from offchip.memory_module import DRAM
+from offchip.data_structure import Request
+from offchip.dram_module import DRAM
 
 
 class Refresh(object):
