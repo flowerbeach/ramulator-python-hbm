@@ -4,12 +4,13 @@ from configs import strings, config
 from offchip.standard import BaseSpec
 from configs.stat_data_structure import ScalarStatistic
 from offchip.data_structure import Request
-from offchip.controller import Controller
 from main import ArgumentParser
 
 
 # MemoryAccessHandler
 class MemAccHan(object):
+    from offchip.controller import Controller
+    
     options = {}
     flag_stall = False
     flag_end = False

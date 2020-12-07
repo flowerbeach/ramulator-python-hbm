@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from configs import strings
 from offchip.standard.spec_base import BaseSpec
 from configs.stat_data_structure import ScalarStatistic
@@ -8,6 +8,8 @@ class DRAM(object):
     from offchip.standard import BaseSpec as t_spec
     
     def __init__(self, spec: BaseSpec, level: t_spec.level, id_: int):
+        from offchip.controller import Controller
+        
         self.id_ = id_
         self.spec = spec  # type: BaseSpec
         self.level = level
@@ -16,6 +18,7 @@ class DRAM(object):
         self.parent = None  # type: DRAM
         self.children = []  # type: List[DRAM]
         self.row_state = {}
+        self.cycle_curr = 0
         
         self.serving_requests = 0
         self.cur_serving_requests = 0
@@ -26,13 +29,13 @@ class DRAM(object):
         self.end_of_refreshing = -1
         self.refresh_intervals = []  # type: List[List]
         
-        self._prereq = []
-        self._rowhit = []
-        self._rowopen = []
-        self._lambda = []
-        self._timing = []
+        self._prereq = {}
+        self._rowhit = {}
+        self._rowopen = {}
+        self._lambda = {}
+        self._timing = {}
         self._next = []
-        self._prev = {}
+        self._prev = {cmd: Controller.Queue() for cmd in self.t_spec.cmd}
         self._state = None
         
         self._num_cycles_busy = ScalarStatistic(0)
@@ -45,6 +48,9 @@ class DRAM(object):
         self.initialize()
     
     def initialize(self):
+        from offchip.controller import Controller
+        self._prev: Dict[DRAM.t_spec.cmd, Controller.Queue]
+    
         self._state = self.spec.start[self.level]
         self._prereq = self.spec.prereq[self.level]
         self._rowhit = self.spec.rowhit[self.level]
@@ -58,7 +64,7 @@ class DRAM(object):
             for t in self._timing[cmd]:
                 dist = max(dist, t.dist)
             if dist > 0:
-                self._prev[cmd] = [-1 for _ in range(dist)]
+                self._prev[cmd].resize(dist, -1)
         child_level = DRAM.t_spec.level(self.level.value + 1)  # type: DRAM.t_spec.level
         
         if child_level == DRAM.t_spec.level.row:
@@ -80,7 +86,7 @@ class DRAM(object):
     
     def decode(self, cmd, addr_list: list):
         child_id = addr_list[self.level.value + 1]
-        if self._prereq[cmd.value]:
+        if self._prereq[cmd]:
             prereq_cmd = self._prereq[cmd.value](self, cmd, child_id)
             if prereq_cmd is not None:
                 # stop recursion: there is a prerequisite at this level
@@ -136,8 +142,60 @@ class DRAM(object):
     def get_next(self):
         raise Exception('todo')
     
-    def update(self):
-        raise Exception('todo')
+    def update(self, cmd, addr_list, cycle_curr):
+        self.cycle_curr = cycle_curr
+        self._update_state(cmd, addr_list)
+        self._update_timing(cmd, addr_list, cycle_curr)
+    
+    def _update_state(self, cmd, addr_list):
+        child_id = addr_list[self.level.value + 1]
+        if self._lambda[cmd] is not None:
+            # update this level
+            self._lambda[cmd](self, child_id)
+        
+        if self.level == self.spec.scope[cmd.value] or len(self.children) == 0:
+            # stop recursion: updated all levels
+            return
+        
+        # recursively update the child
+        self.children[child_id]._update_state(cmd, addr_list)
+    
+    def _update_timing(self, cmd, addr_list, cycle_curr):
+        from offchip.standard.spec_data_structure import TimingEntry
+        self._timing: Dict[DRAM.t_spec.cmd, List[TimingEntry]]
+        
+        if self.id_ != addr_list[self.level.value]:
+            for t in self._timing[cmd]:
+                if not t.sibling:
+                    # not an applicable timing parameter
+                    continue
+                
+                # update future
+                assert t.dist == 1
+                future = cycle_curr + t.val
+                self._next[t.cmd.value] = max(future, self._next[t.cmd.value])
+            
+            # stop recursion: only target nodes should be recursed
+            return
+        
+        from offchip.controller import Controller
+        self._prev: Dict[DRAM.t_spec.cmd, Controller.Queue]
+        if self._prev[cmd].size() > 0:
+            self._prev[cmd].pop_i()
+            self._prev[cmd].push(cycle_curr)
+        
+        for t in self._timing[cmd]:
+            pass
+        
+        # Some commands have timings that are higher that their scope levels, thus
+        # we do not stop at the cmd's scope level
+        if len(self.children) == 0:
+            # stop recursion: updated all levels
+            return
+        
+        # recursively update *all* of the children
+        for child in self.children:
+            child._update_timing(cmd, addr_list, cycle_curr)
     
     def update_serving_requests(self, addr_list, delta, cycle_curr):
         assert self.id_ == addr_list[self.level.value]

@@ -46,7 +46,7 @@ class BaseSpec(object):
         self.rowopen = {level: {cmd: None for cmd in self.cmd} for level in self.level}
         self.lambda_ = {level: {cmd: None for cmd in self.cmd} for level in self.level}
         self.timing = {level: {cmd: [] for cmd in self.cmd} for level in self.level
-                       }  # type: Dict[str:Dict[str:List[TimingEntry]]]
+                       }  # type: Dict[str,Dict[str,List[TimingEntry]]]
         
         self.org_table = {
             strings.org_1Gb: OrgEntry(1 << 10, 128, [0, 0, 4, 2, 1 << 13, 1 << (6 + 1)]),

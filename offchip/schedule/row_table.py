@@ -15,10 +15,10 @@ class RowTable(object):
     
     def __init__(self, controller):
         self.ctrl = controller  # type: RowTable.Controller
-        self.table = {}  # type: Dict[list, RowTable.Entry]
+        self.table = {}  # type: Dict[tuple, RowTable.Entry]
     
     def update(self, cmd, addr_list, cycle_current):
-        row_group = addr_list[:self.t_spec.level.row.value]
+        row_group = tuple(addr_list[:self.t_spec.level.row.value])
         row = addr_list[self.t_spec.level.row.value]
         spec = self.ctrl.channel.spec
         
@@ -49,7 +49,7 @@ class RowTable(object):
             assert n_rm == 1
     
     def get_hits(self, addr_list, to_opened_row=False):
-        row_group = addr_list[:self.t_spec.level.row.value]
+        row_group = tuple(addr_list[:self.t_spec.level.row.value])
         row = addr_list[self.t_spec.level.row.value]
         if row_group not in self.table.keys():
             return 0
@@ -58,7 +58,7 @@ class RowTable(object):
         return self.table[row_group].hits
     
     def get_open_row(self, addr_list: list):
-        row_group = addr_list[:self.t_spec.level.row.value]
+        row_group = tuple(addr_list[:self.t_spec.level.row.value])
         if row_group in self.table.keys():
             return self.table[row_group].row
         else:

@@ -2,29 +2,42 @@ import copy
 from typing import List
 from configs import strings
 from offchip.data_structure import Request
-from offchip.dram_module import DRAM
 
 
 class Controller(object):
+    from offchip.standard.spec_base import BaseSpec as t_spec
+    from offchip.dram_module import DRAM
+    
     class Queue(object):
         def __init__(self, max=32):
-            self.queue_requests = []  # type: List[Request]
+            self.queue_req = []  # type: List[Request]
             self.max = max
         
         def size(self):
-            return len(self.queue_requests)
+            return len(self.queue_req)
+        
+        def resize(self, max_new, padding=0):
+            self.max = max_new
+            if len(self.queue_req) > max_new:
+                self.queue_req = self.queue_req[:max_new]
+            else:
+                for _ in range(max_new - len(self.queue_req)):
+                    self.queue_req.append(padding)
         
         def get_i(self, i):
-            return self.queue_requests[i]
+            return self.queue_req[i]
         
         def pop_i(self, i=0):
-            return self.queue_requests.pop(i)
+            return self.queue_req.pop(i)
+        
+        def push(self, req):
+            self.queue_req.append(req)
     
     def __init__(self, args_, channel: DRAM):
         from offchip.schedule import Scheduler, RowTable, RowPolicy
         from offchip.refresh import Refresh
         
-        self.cycle_current = 0
+        self.cycle_curr = 0
         self.channel = channel
         self.spec = channel.spec
         self.scheduler = Scheduler(self)
@@ -81,10 +94,10 @@ class Controller(object):
     
     def finish(self, read_req):
         self._latency_read_avg = self._latency_read_sum / read_req
-        self._req_queue_length_avg = self._req_queue_length_sum / self.cycle_current
-        self._req_queue_length_read_avg = self._req_queue_length_read_sum / self.cycle_current
-        self._req_queue_length_write_avg = self._req_queue_length_write_sum / self.cycle_current
-        self.channel.finish(self.cycle_current)
+        self._req_queue_length_avg = self._req_queue_length_sum / self.cycle_curr
+        self._req_queue_length_read_avg = self._req_queue_length_read_sum / self.cycle_curr
+        self._req_queue_length_write_avg = self._req_queue_length_write_sum / self.cycle_curr
+        self.channel.finish(self.cycle_curr)
     
     def _get_queue(self, type_):
         if type_ == Request.Type.read:
@@ -103,28 +116,28 @@ class Controller(object):
         elif queue.size() > queue.max:
             raise Exception(queue.size())
         
-        req.cycle_arrive = self.cycle_current
-        queue.queue_requests.append(req)
+        req.cycle_arrive = self.cycle_curr
+        queue.queue_req.append(req)
         
         if req.type == Request.Type.read:
-            for wreq in self.queue_write.queue_requests:
+            for wreq in self.queue_write.queue_req:
                 if wreq.addr_int == req.addr_int:
-                    req.cycle_depart = self.cycle_current + 1
-                    self.pending_reads.queue_requests.append(req)
-                    self.queue_read.queue_requests.pop()
+                    req.cycle_depart = self.cycle_curr + 1
+                    self.pending_reads.queue_req.append(req)
+                    self.queue_read.queue_req.pop()
                     break
         return True
     
     def cycle(self):
-        self.cycle_current += 1
+        self.cycle_curr += 1
         
         # 1. Serve completed reads
         if self.pending_reads.size() > 0:
             req = self.pending_reads.get_i(0)
-            if req.cycle_depart <= self.cycle_current:
+            if req.cycle_depart <= self.cycle_curr:
                 if req.cycle_depart - req.cycle_arrive > 1:  # this request really accessed a row
                     self._latency_read_sum += req.cycle_depart - req.cycle_arrive
-                    self.channel.update_serving_requests(req.addr_list, -1, self.cycle_current)
+                    self.channel.update_serving_requests(req.addr_list, -1, self.cycle_curr)
                 req.callback(req)  # todo callback
                 self.pending_reads.pop_i(0)
         
@@ -142,16 +155,79 @@ class Controller(object):
                 self.write_mode = False
         
         # 4. Find the best command to schedule, if any
+        
+        # First check the actq (which has higher priority) to see if there
+        # are requests available to service in this cycle
+        cmd = None
         queue = self.queue_activate
-        req = self.scheduler.get_head(queue.queue_requests)
+        req = self.scheduler.get_head(queue.queue_req)
         is_valid_req = (req is not None)
+        if is_valid_req is True:
+            cmd = self._get_first_cmd(req)
+            is_valid_req = self.is_ready_cmd(cmd, req.addr_list)
+        
+        if is_valid_req is False:
+            # "other" requests are rare, so we give them precedence over reads/writes
+            if self.queue_other.size() > 0:
+                queue = self.queue_other
+            elif self.write_mode is True:
+                queue = self.queue_write
+            else:
+                queue = self.queue_read
+            
+            req = self.scheduler.get_head(queue.queue_req)
+            is_valid_req = (req is not None)
+            if is_valid_req is True:
+                cmd = self._get_first_cmd(req)
+                is_valid_req = self.is_ready_cmd(cmd, req.addr_list)
+        
+        if is_valid_req is False:
+            # we couldn't find a command to schedule -- let's try to be speculative
+            cmd = Controller.t_spec.cmd.pre
+            victim = self.row_policy.get_victim(cmd)
+            if len(victim) > 0:
+                self._issue_cmd(cmd, victim)
+            return
+        
+        if req.is_first_command is True:
+            req.is_first_command = False
+            device = req.device
+            if req.type in [Request.Type.read, Request.Type.write]:
+                self.channel.update_serving_requests(req.addr_list, 1, self.cycle_curr)
+            
+            tx = (self.channel.spec.prefetch_size * self.channel.spec.channel_width / 8)
+            if req.type == Request.Type.read:
+                pass
+            elif req.type == Request.Type.write:
+                pass
+        
+        # issue command on behalf of request
+        self._issue_cmd(cmd, self._get_addr_list(cmd, req))
+        
+        if cmd != self.channel.spec.translate[req.type]:
+            if self.channel.spec.is_opening(cmd):
+                # promote the request that caused issuing activation to actq
+                self.queue_activate.queue_req.append(req)
+                queue.queue_req.remove(req)
+            return
+        
+        # set a future completion time for read requests
+        if req.type == Request.Type.read:
+            req.cycle_depart = self.cycle_curr + self.channel.spec.read_latency
+            self.pending_reads.push(req)
+        
+        if req.type == Request.Type.write:
+            self.channel.update_serving_requests(req.addr_list, -1, self.cycle_curr)
+            req.callback(req)  # todo callback
+        
+        queue.queue_req.remove(req)
     
     def is_ready_req(self, request: Request):
         cmd = self._get_first_cmd(request)
-        return self.channel.check(cmd, request.addr_list, self.cycle_current)
+        return self.channel.check(cmd, request.addr_list, self.cycle_curr)
     
     def is_ready_cmd(self, cmd, addr_list):
-        return self.channel.check(cmd, addr_list, self.cycle_current)
+        return self.channel.check(cmd, addr_list, self.cycle_curr)
     
     def is_row_hit_req(self, request: Request):
         cmd = self.channel.spec.translate[request.type]
@@ -171,7 +247,7 @@ class Controller(object):
         return self.channel.cur_serving_requests > 0
     
     def is_refresh(self):
-        return self.cycle_current <= self.channel.end_of_refreshing
+        return self.cycle_curr <= self.channel.end_of_refreshing
     
     def set_high_writeq_watermark(self, mark):
         self.wr_high_watermark = mark
@@ -188,14 +264,54 @@ class Controller(object):
         cmd = self.channel.spec.translate[request.type]
         return self.channel.decode(cmd, request.addr_list)
     
-    def _cmd_issue_autoprecharge(self):
-        raise Exception('todo')
+    def _cmd_issue_autoprecharge(self, cmd, addr_list):
+        from offchip.schedule import RowPolicy
+        if self.channel.spec.is_accessing(cmd) and \
+                self.row_policy.type == RowPolicy.Type.closedAP:
+            # check if it is the last request to the opened row
+            queue = self.queue_write if self.write_mode else self.queue_read
+            row_group = addr_list[:self.t_spec.level.row.value + 1]
+            
+            num_row_hits = 0
+            
+            for req in queue.queue_req:
+                if self.is_row_hit_req(req):
+                    row_group_2 = req.addr_list[:self.t_spec.level.row.value + 1]
+                    if row_group == row_group_2:
+                        num_row_hits += 1
+            
+            if num_row_hits == 0:
+                queue = self.queue_activate
+                for req in queue.queue_req:
+                    if self.is_row_hit_req(req):
+                        row_group_2 = req.addr_list[:self.t_spec.level.row.value + 1]
+                        if row_group == row_group_2:
+                            num_row_hits += 1
+            
+            assert num_row_hits > 0  # The current request should be a hit,
+            # so there should be at least one request that hits in the current open row
+            
+            if num_row_hits == 1:
+                if cmd == self.t_spec.cmd.rd:
+                    cmd = self.t_spec.cmd.rda
+                elif cmd == self.t_spec.cmd.wr:
+                    cmd = self.t_spec.cmd.wra
+                else:
+                    raise Exception(cmd)
     
-    def _issue_cmd(self):
-        raise Exception('todo')
+    def _issue_cmd(self, cmd, addr_list):
+        self._cmd_issue_autoprecharge(cmd, addr_list)
+        assert self.is_ready_cmd(cmd, addr_list)
+        self.channel.update(cmd, addr_list, self.cycle_curr)
+        
+        if cmd == self.t_spec.cmd.pre:
+            if self.row_table.get_hits(addr_list, True) == 0:
+                self.useless_activates += 1
+        
+        self.row_table.update(cmd, addr_list, self.cycle_curr)
     
     @staticmethod
-    def _get_addr_vec(cmd, req: Request):
+    def _get_addr_list(cmd, req: Request):
         return req.addr_list
     
     def print_state(self):
