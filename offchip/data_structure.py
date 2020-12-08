@@ -46,6 +46,9 @@ class Request(object):
         self.type = type_  # type: str
         self.addr_int = -1  # type: int
         self.addr_list = []  # type: List[int]
+        self.is_first_command = True
+        
+        self.callback = None  # todo callback
         
         if type(addr) == int:
             self.addr_int = addr
@@ -53,8 +56,6 @@ class Request(object):
             self.addr_list = addr
         else:
             raise Exception(addr)
-        
-        self.is_first_command = True  # todo why?
         
         self.cycle_arrive = None  # type: int
         self.cycle_depart = None  # type: int

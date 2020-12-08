@@ -298,9 +298,10 @@ class Controller(object):
                     cmd = self.t_spec.cmd.wra
                 else:
                     raise Exception(cmd)
+        return cmd
     
     def _issue_cmd(self, cmd, addr_list):
-        self._cmd_issue_autoprecharge(cmd, addr_list)
+        cmd = self._cmd_issue_autoprecharge(cmd, addr_list)
         assert self.is_ready_cmd(cmd, addr_list)
         self.channel.update(cmd, addr_list, self.cycle_curr)
         

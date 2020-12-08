@@ -13,20 +13,13 @@ def print_state_periodically(start, interval=1000, do_print_state=False):
                     print()
 
 
-def print_state_every_cycle(dram, start, end=None):
-    if start <= dram.num_cycle:
-        if end is None or dram.num_cycle <= end:
-            dram.print_internal_state()
-
-
 def early_termination(end, args):
     if MAH.get_num_cycle() > end:
-        # MAH.print_internal_state()  todo
+        MAH.print_internal_state()
         print_statistics(args)
         print('The number of cycle larger than', end)
         exit(886)
 
 
 def print_statistics(args):
-    from offchip.access_handler import MemAccHan as MAH
     print('TODO: print_statistics')

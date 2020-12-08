@@ -50,7 +50,7 @@ class DRAM(object):
     def initialize(self):
         from offchip.controller import Controller
         self._prev: Dict[DRAM.t_spec.cmd, Controller.Queue]
-    
+        
         self._state = self.spec.start[self.level]
         self._prereq = self.spec.prereq[self.level]
         self._rowhit = self.spec.rowhit[self.level]
@@ -138,9 +138,6 @@ class DRAM(object):
         
         # recursively check for row hits at my child
         return self.children[child_id].check_row_open(cmd, addr_list)
-    
-    def get_next(self):
-        raise Exception('todo')
     
     def update(self, cmd, addr_list, cycle_curr):
         self.cycle_curr = cycle_curr

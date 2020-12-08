@@ -8,9 +8,9 @@ def calc_log2(val: int):
 
 
 def slice_lower_bits(addr_int, bits):
-    lbits = addr_int & ((1 << bits) - 1)
+    addr_low_bits = addr_int & ((1 << bits) - 1)
     addr_int >>= bits
-    return lbits, addr_int
+    return addr_low_bits, addr_int
 
 
 def clear_lower_bits(addr_int, bits):
