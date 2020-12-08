@@ -65,14 +65,16 @@ class DRAM(object):
                 dist = max(dist, t.dist)
             if dist > 0:
                 self._prev[cmd].resize(dist, -1)
+                
         child_level = DRAM.t_spec.level(self.level.value + 1)  # type: DRAM.t_spec.level
-        
         if child_level == DRAM.t_spec.level.row:
             return
         child_max = self.spec.org_entry.count[child_level.value]
         if child_max == 0:
+            # stop recursion: the number of children is unspecified
             return
         
+        # recursively construct the children
         for i in range(child_max):
             child = DRAM(self.spec, child_level, id_=i)
             child.parent = self
@@ -231,9 +233,11 @@ class DRAM(object):
         self.children[child_id].update_serving_requests(addr_list, delta, cycle_curr)
     
     def finish(self, num_cycles):
+        # finalize busy cycles
         self._num_cycles_busy.scalar = self._num_cycles_active.scalar + \
                                        self._num_cycles_refresh.scalar + \
                                        self._num_cycles_overlap.scalar
+        # finalize average serving requests
         self._avg_reqs_served.scalar = self._num_reqs_served.scalar / num_cycles
         if len(self.children) == 0:
             return

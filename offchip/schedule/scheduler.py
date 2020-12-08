@@ -1,8 +1,6 @@
 from typing import List
-from configs import strings
-from offchip.data_structure import Request
-from offchip.standard import BaseSpec
 from enum import Enum, unique
+from offchip.data_structure import Request
 
 
 class Scheduler(object):
@@ -75,22 +73,49 @@ class Scheduler(object):
                 head = self._compare[Scheduler.Type.FRFCFS](head, req)
         return head
     
-    def _compare_FCFS(self, req1, req2):
-        raise Exception('todo')
-        head = None
-        return head
+    def _compare_FCFS(self, req1: Request, req2: Request):
+        if req1.cycle_arrive <= req2.cycle_arrive:
+            return req1
+        return req2
     
-    def _compare_FRFCFS(self, req1, req2):
-        raise Exception('todo')
-        head = None
-        return head
+    def _compare_FRFCFS(self, req1: Request, req2: Request):
+        ready1 = self.ctrl.is_ready_req(req1)
+        ready2 = self.ctrl.is_ready_req(req2)
+        
+        if ready1 ^ ready2:
+            if ready1:
+                return req1
+            return req2
+        
+        if req1.cycle_arrive <= req2.cycle_arrive:
+            return req1
+        return req2
     
-    def _compare_FRFCFS_CAP(self, req1, req2):
-        raise Exception('todo')
-        head = None
-        return head
+    def _compare_FRFCFS_CAP(self, req1: Request, req2: Request):
+        ready1 = self.ctrl.is_ready_req(req1)
+        ready2 = self.ctrl.is_ready_req(req2)
+        
+        ready1 = ready1 and (self.ctrl.row_table.get_hits(req1.addr_list) < self.cap)
+        ready2 = ready2 and (self.ctrl.row_table.get_hits(req2.addr_list) < self.cap)
+        
+        if ready1 ^ ready2:
+            if ready1:
+                return req1
+            return req2
+        
+        if req1.cycle_arrive <= req2.cycle_arrive:
+            return req1
+        return req2
     
-    def _compare_FRFCFS_PriorHit(self, req1, req2):
-        raise Exception('todo')
-        head = None
-        return head
+    def _compare_FRFCFS_PriorHit(self, req1: Request, req2: Request):
+        ready1 = self.ctrl.is_ready_req(req1) and self.ctrl.is_row_hit_req(req1)
+        ready2 = self.ctrl.is_ready_req(req2) and self.ctrl.is_row_hit_req(req2)
+        
+        if ready1 ^ ready2:
+            if ready1:
+                return req1
+            return req2
+        
+        if req1.cycle_arrive <= req2.cycle_arrive:
+            return req1
+        return req2

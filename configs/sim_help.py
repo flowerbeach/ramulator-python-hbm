@@ -1,4 +1,4 @@
-from offchip.access_handler import MemAccHan as MAH
+from offchip.memory import Memory as MAH
 
 
 def print_state_periodically(start, interval=1000, do_print_state=False):

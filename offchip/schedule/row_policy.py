@@ -1,13 +1,10 @@
-from typing import List, Dict
-from configs import strings
-from offchip.data_structure import Request
-from offchip.standard import BaseSpec
+from typing import List
 from enum import Enum, unique
 
 
 class RowPolicy(object):
     from offchip.controller import Controller
-    from offchip.standard import BaseSpec as t_spec
+    # from offchip.standard import BaseSpec as t_spec
     
     @unique
     class Type(Enum):
@@ -32,13 +29,27 @@ class RowPolicy(object):
         return self._policy[self.type.value](cmd)
     
     def _policy_closed(self, cmd):
-        raise Exception('todo')
+        for k in self.ctrl.row_table.table.keys():
+            if not self.ctrl.is_ready_cmd(cmd, k):
+                continue
+            return k
+        return list()
     
     def _policy_closedAP(self, cmd):
-        raise Exception('todo')
+        for k in self.ctrl.row_table.table.keys():
+            if not self.ctrl.is_ready_cmd(cmd, k):
+                continue
+            return k
+        return list()
     
     def _policy_opened(self, cmd):
-        raise Exception('todo')
+        return list()
     
     def _policy_timeout(self, cmd):
-        raise Exception('todo')
+        for k, v in self.ctrl.row_table.table.items():
+            if self.ctrl.cycle_curr - v.timestamp < self.timeout:
+                continue
+            if not self.ctrl.is_ready_cmd(cmd, k):
+                continue
+            return k
+        return list()

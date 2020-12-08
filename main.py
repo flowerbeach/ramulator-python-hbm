@@ -75,7 +75,7 @@ from offchip.data_structure import Request, Trace
 
 
 def main(args_, spec_: BaseSpec, trace_: Trace):
-    from offchip.access_handler import MemAccHan as MAH
+    from offchip.memory import Memory as MAH
     from offchip.controller import Controller
     from offchip.dram_module import DRAM
     ctrls = []

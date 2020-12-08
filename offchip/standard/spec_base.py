@@ -34,8 +34,6 @@ class BaseSpec(object):
         self.name_spec = args.name_spec
         assert self.name_spec in strings.standard
         
-        self._org = args.org
-        self._speed = args.speed
         self._num_ranks = args.num_ranks
         self._num_channels = args.num_channels
         
@@ -52,11 +50,11 @@ class BaseSpec(object):
             strings.org_1Gb: OrgEntry(1 << 10, 128, [0, 0, 4, 2, 1 << 13, 1 << (6 + 1)]),
             strings.org_2Gb: OrgEntry(2 << 10, 128, [0, 0, 4, 2, 1 << 14, 1 << (6 + 1)]),
             strings.org_4Gb: OrgEntry(4 << 10, 128, [0, 0, 4, 4, 1 << 14, 1 << (6 + 1)])}
-        self.org_entry = self.org_table[self._org]
+        self.org_entry = self.org_table[args.org]
         
         self.speed_table = {
             strings.speed_1Gbps: SpeedEntry(1000, 500, 2.0, 2, 2, 3, 7, 7, 6, 7, 4, 17, 24, 7, 2, 4, 8, 4, 5, 20, 0, 1950, 0, 5, 5, 5, 0)}
-        self.speed_entry = self.speed_table[self._speed]
+        self.speed_entry = self.speed_table[args.speed]
         self.read_latency = self.speed_entry.nCL + self.speed_entry.nBL
         
         self.prefetch_size = 4  # burst length could be 2 and 4 (choose 4 here), 2n prefetch

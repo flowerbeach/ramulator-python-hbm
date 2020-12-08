@@ -1,6 +1,4 @@
-from typing import List, Dict
-from configs import strings
-from offchip.data_structure import Request
+from typing import Dict
 
 
 class RowTable(object):
@@ -63,13 +61,3 @@ class RowTable(object):
             return self.table[row_group].row
         else:
             return -1
-
-
-if __name__ == '__main__':
-    a = {'aaa': 1, 3: '5', 55: '3'}
-    print(a)
-    keys = list(a.keys())
-    for k in keys:
-        if k == 3:
-            del a[k]
-    print(a)
