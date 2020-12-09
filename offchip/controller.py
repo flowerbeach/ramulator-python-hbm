@@ -1,6 +1,4 @@
-import copy
 from typing import List
-from configs import strings
 from offchip.data_structure import Request
 
 
@@ -39,7 +37,7 @@ class Controller(object):
         
         self.cycle_curr = 0
         self.channel = channel
-        self.spec = channel.spec
+        self.spec = channel.t_spec
         self.scheduler = Scheduler(self)
         self.row_policy = RowPolicy(self)
         self.row_table = RowTable(self)
@@ -195,17 +193,17 @@ class Controller(object):
             if req.type in [Request.Type.read, Request.Type.write]:
                 self.channel.update_serving_requests(req.addr_list, 1, self.cycle_curr)
             
-            tx = (self.channel.spec.prefetch_size * self.channel.spec.channel_width / 8)
+            tx = (self.channel.t_spec.prefetch_size * self.channel.t_spec.channel_width / 8)
             if req.type == Request.Type.read:
-                pass
+                raise Exception('todo')  # todo
             elif req.type == Request.Type.write:
-                pass
+                raise Exception('todo')  # todo
         
         # issue command on behalf of request
         self._issue_cmd(cmd, self._get_addr_list(cmd, req))
         
-        if cmd != self.channel.spec.translate[req.type]:
-            if self.channel.spec.is_opening(cmd):
+        if cmd != self.channel.t_spec.translate[req.type]:
+            if self.channel.t_spec.is_opening(cmd):
                 # promote the request that caused issuing activation to actq
                 self.queue_activate.queue_req.append(req)
                 queue.queue_req.remove(req)
@@ -213,7 +211,7 @@ class Controller(object):
         
         # set a future completion time for read requests
         if req.type == Request.Type.read:
-            req.cycle_depart = self.cycle_curr + self.channel.spec.read_latency
+            req.cycle_depart = self.cycle_curr + self.channel.t_spec.read_latency
             self.pending_reads.push(req)
         
         if req.type == Request.Type.write:
@@ -230,14 +228,14 @@ class Controller(object):
         return self.channel.check(cmd, addr_list, self.cycle_curr)
     
     def is_row_hit_req(self, request: Request):
-        cmd = self.channel.spec.translate[request.type]
+        cmd = self.channel.t_spec.translate[request.type]
         return self.channel.check_row_hit(cmd, request.addr_list)
     
     def is_row_hit_cmd(self, cmd, addr_list):
         return self.channel.check_row_hit(cmd, addr_list)
     
     def is_row_open_req(self, request: Request):
-        cmd = self.channel.spec.translate[request.type]
+        cmd = self.channel.t_spec.translate[request.type]
         return self.channel.check_row_open(cmd, request.addr_list)
     
     def is_row_open_cmd(self, cmd, addr_list):
@@ -261,12 +259,12 @@ class Controller(object):
     ###
     
     def _get_first_cmd(self, request: Request):
-        cmd = self.channel.spec.translate[request.type]
+        cmd = self.channel.t_spec.translate[request.type]
         return self.channel.decode(cmd, request.addr_list)
     
     def _cmd_issue_autoprecharge(self, cmd, addr_list):
         from offchip.schedule import RowPolicy
-        if self.channel.spec.is_accessing(cmd) and \
+        if self.channel.t_spec.is_accessing(cmd) and \
                 self.row_policy.type == RowPolicy.Type.closedAP:
             # check if it is the last request to the opened row
             queue = self.queue_write if self.write_mode else self.queue_read

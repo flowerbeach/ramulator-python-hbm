@@ -1,17 +1,14 @@
-from typing import List, Dict
-from configs import strings
+from typing import List, Dict, Any
 from offchip.standard.spec_base import BaseSpec
 from configs.stat_data_structure import ScalarStatistic
 
 
 class DRAM(object):
-    from offchip.standard import BaseSpec as t_spec
-    
-    def __init__(self, spec: BaseSpec, level: t_spec.level, id_: int):
+    def __init__(self, t_spec: BaseSpec, level, id_: int):
         from offchip.controller import Controller
         
         self.id_ = id_
-        self.spec = spec  # type: BaseSpec
+        self.t_spec = t_spec  # type: BaseSpec
         self.level = level
         
         self.size = -1
@@ -49,34 +46,34 @@ class DRAM(object):
     
     def initialize(self):
         from offchip.controller import Controller
-        self._prev: Dict[DRAM.t_spec.cmd, Controller.Queue]
+        self._prev: Dict[Any, Controller.Queue]
         
-        self._state = self.spec.start[self.level]
-        self._prereq = self.spec.prereq[self.level]
-        self._rowhit = self.spec.rowhit[self.level]
-        self._rowopen = self.spec.rowopen[self.level]
-        self._lambda = self.spec.lambda_[self.level]
-        self._timing = self.spec.timing[self.level]
+        self._state = self.t_spec.start[self.level]
+        self._prereq = self.t_spec.prereq[self.level]
+        self._rowhit = self.t_spec.rowhit[self.level]
+        self._rowopen = self.t_spec.rowopen[self.level]
+        self._lambda = self.t_spec.lambda_[self.level]
+        self._timing = self.t_spec.timing[self.level]
         
-        self._next = [-1 for _ in DRAM.t_spec.cmd]
-        for cmd in DRAM.t_spec.cmd:
+        self._next = [-1 for _ in self.t_spec.cmd]
+        for cmd in self.t_spec.cmd:
             dist = 0
             for t in self._timing[cmd]:
                 dist = max(dist, t.dist)
             if dist > 0:
                 self._prev[cmd].resize(dist, -1)
-                
-        child_level = DRAM.t_spec.level(self.level.value + 1)  # type: DRAM.t_spec.level
-        if child_level == DRAM.t_spec.level.row:
+        
+        child_level = self.t_spec.level(self.level.value + 1)
+        if child_level == self.t_spec.level.row:
             return
-        child_max = self.spec.org_entry.count[child_level.value]
+        child_max = self.t_spec.org_entry.count[child_level.value]
         if child_max == 0:
             # stop recursion: the number of children is unspecified
             return
         
         # recursively construct the children
         for i in range(child_max):
-            child = DRAM(self.spec, child_level, id_=i)
+            child = DRAM(self.t_spec, child_level, id_=i)
             child.parent = self
             self.children.append(child)
     
@@ -89,7 +86,7 @@ class DRAM(object):
     def decode(self, cmd, addr_list: list):
         child_id = addr_list[self.level.value + 1]
         if self._prereq[cmd]:
-            prereq_cmd = self._prereq[cmd.value](self, cmd, child_id)
+            prereq_cmd = self._prereq[cmd](self, cmd, child_id)
             if prereq_cmd is not None:
                 # stop recursion: there is a prerequisite at this level
                 return prereq_cmd
@@ -107,7 +104,7 @@ class DRAM(object):
             return False
         
         child_id = addr_list[self.level.value + 1]
-        if child_id < 0 or self.level == self.spec.scope[cmd.value] or \
+        if child_id < 0 or self.level == self.t_spec.scope[cmd.value] or \
                 len(self.children) == 0:
             # stop recursion: the check passed at all levels
             return True
@@ -152,7 +149,7 @@ class DRAM(object):
             # update this level
             self._lambda[cmd](self, child_id)
         
-        if self.level == self.spec.scope[cmd.value] or len(self.children) == 0:
+        if self.level == self.t_spec.scope[cmd.value] or len(self.children) == 0:
             # stop recursion: updated all levels
             return
         
@@ -161,7 +158,7 @@ class DRAM(object):
     
     def _update_timing(self, cmd, addr_list, cycle_curr):
         from offchip.standard.spec_data_structure import TimingEntry
-        self._timing: Dict[DRAM.t_spec.cmd, List[TimingEntry]]
+        self._timing: Dict[Any, List[TimingEntry]]
         
         if self.id_ != addr_list[self.level.value]:
             for t in self._timing[cmd]:
@@ -178,14 +175,14 @@ class DRAM(object):
             return
         
         from offchip.controller import Controller
-        self._prev: Dict[DRAM.t_spec.cmd, Controller.Queue]
+        self._prev: Dict[Any, Controller.Queue]
         if self._prev[cmd].size() > 0:
             self._prev[cmd].pop_i()
             self._prev[cmd].push(cycle_curr)
         
         for t in self._timing[cmd]:
-            pass
-        
+            raise Exception('todo')  # todo
+
         # Some commands have timings that are higher that their scope levels, thus
         # we do not stop at the cmd's scope level
         if len(self.children) == 0:
@@ -228,7 +225,7 @@ class DRAM(object):
         
         child_id = addr_list[self.level.value + 1]
         # We only count the level bank or the level higher than bank
-        if child_id < 0 or len(self.children) == 0 or self.level.value > DRAM.t_spec.level.bank.value:
+        if child_id < 0 or len(self.children) == 0 or self.level.value > self.t_spec.level.bank.value:
             return
         self.children[child_id].update_serving_requests(addr_list, delta, cycle_curr)
     

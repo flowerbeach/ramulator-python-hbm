@@ -18,7 +18,7 @@ class RowTable(object):
     def update(self, cmd, addr_list, cycle_current):
         row_group = tuple(addr_list[:self.t_spec.level.row.value])
         row = addr_list[self.t_spec.level.row.value]
-        spec = self.ctrl.channel.spec
+        spec = self.ctrl.channel.t_spec
         
         if spec.is_opening(cmd) is True:
             self.table[row_group] = RowTable.Entry(row, 0, cycle_current)

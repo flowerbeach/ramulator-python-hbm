@@ -67,17 +67,19 @@ def parse_config(args_):
 
 class Argument(object):
     args = parse_config(
-        ArgumentParser(description='simulation - DRAM').parse_args())
+        ArgumentParser(description='simulation - DRAM').parse_args()
+    )  # type: ArgumentParser
 
 
-from offchip.standard.spec_base import BaseSpec
 from offchip.data_structure import Request, Trace
 
 
-def main(args_, spec_: BaseSpec, trace_: Trace):
+def main(args_, spec_, trace_: Trace):
+    from offchip.standard.spec_base import BaseSpec
     from offchip.memory import Memory as MAH
     from offchip.controller import Controller
     from offchip.dram_module import DRAM
+    spec_: BaseSpec
     ctrls = []
     for i in range(args_.num_channels):
         channel = DRAM(spec_, BaseSpec.level.channel, i)
@@ -117,10 +119,11 @@ if __name__ == '__main__':
     
     name_spec = Argument.args.name_spec
     if name_spec == strings.standard.hbm:
+        from offchip.standard.spec_base import BaseSpec
         Standard = BaseSpec
     else:
         raise Exception(name_spec)
     
-    standard = Standard(Argument.args)
+    standard = Standard.initialize()
     trace = Trace(trace_file)
-    main(Argument.args, standard, trace)
+    main(Argument.args, Standard, trace)

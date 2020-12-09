@@ -48,7 +48,7 @@ class Scheduler(object):
         for req in queue_req:
             if self.ctrl.is_row_hit_req(req):
                 begin = 0
-                end = begin + self.ctrl.channel.spec.scope[self.t_spec.cmd.pre.value] + 1
+                end = begin + self.ctrl.channel.t_spec.scope[self.t_spec.cmd.pre.value] + 1
                 hit_reqs.append([begin, end])
         
         # if we can't find proper request, we need to return q.end(),
@@ -58,7 +58,7 @@ class Scheduler(object):
             violate_hit = False
             if self.ctrl.is_row_hit_req(req) is False and self.ctrl.is_row_open_req(req):
                 begin = 0
-                end = begin + self.ctrl.channel.spec.scope[self.t_spec.cmd.pre.value] + 1
+                end = begin + self.ctrl.channel.t_spec.scope[self.t_spec.cmd.pre.value] + 1
                 for hit_req_rowgroup in hit_reqs:
                     if hit_req_rowgroup == [begin, end]:
                         violate_hit = True

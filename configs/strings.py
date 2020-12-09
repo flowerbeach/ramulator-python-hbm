@@ -4,7 +4,6 @@ from enum import Enum, unique
 @unique
 class standard(Enum):
     hbm = 'hbm'
-    aldram = 'aldram'
 
 
 org_1Gb = '1Gb'

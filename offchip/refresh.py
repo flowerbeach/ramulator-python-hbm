@@ -1,4 +1,3 @@
-from configs import strings
 from offchip.data_structure import Request
 
 
@@ -12,7 +11,7 @@ class Refresh(object):
         self.cycle_last_refreshed = 0
         self.cycle_current = 0
         self.cnt_max_rank = len(self.ctrl.channel.children)
-        self.cnt_max_bank = self.ctrl.channel.spec.org_entry.count[Refresh.t_spec.level.bank.value]
+        self.cnt_max_bank = self.ctrl.channel.t_spec.org_entry.count[Refresh.t_spec.level.bank.value]
         
         self.bank_ref_counters = []
         self.__bank_refresh_backlog = []
@@ -33,15 +32,10 @@ class Refresh(object):
     def cycle(self):
         self.cycle_current += 1
         
-        refresh_interval = self.ctrl.channel.spec.speed_entry.nREFI
+        refresh_interval = self.ctrl.channel.t_spec.speed_entry.nREFI
         
         if self.cycle_current - self.cycle_last_refreshed >= refresh_interval:
             self._inject_refresh(True)
-            
-            # update temperature if possible
-            if self.ctrl.spec.name_spec == strings.standard.aldram:
-                current_temperature = 0
-                self.ctrl.set_temperature(current_temperature)
     
     def _inject_refresh(self, b_ref_rank: bool):
         if b_ref_rank is True:  # Rank-level refresh

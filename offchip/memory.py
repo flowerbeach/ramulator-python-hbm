@@ -11,9 +11,7 @@ from main import ArgumentParser
 class Memory(object):
     from offchip.controller import Controller
     
-    options = {}
     flag_stall = False
-    flag_end = False
     translation = strings.translation_none
     type_ = strings.memory_type_RoBaRaCoCh
     tx_bits = None  # type: int
@@ -27,34 +25,34 @@ class Memory(object):
     _max_address = 0
     _addr_bits = []
     
-    __initialized = False
-    __latency = {}
-    __ctrls = []  # type: List[Controller]
-    __spec = None  # type: BaseSpec
+    latency = {}
+    initialized = False
+    ctrls = []  # type: List[Controller]
+    spec = None  # type: BaseSpec
     
     @staticmethod
     def initialize(args_: ArgumentParser, ctrls: List[Controller]):
-        assert Memory.__initialized == False
-        Memory.__initialized = True
+        assert Memory.initialized == False
+        Memory.initialized = True
         
-        Memory.__ctrls = ctrls
-        Memory.__spec = ctrls[0].spec
-        assert args_.name_spec == Memory.__spec.name_spec
+        Memory.ctrls = ctrls
+        Memory.spec = ctrls[0].spec
+        assert args_.name_spec == Memory.spec.name_spec
         
-        sz = Memory.__spec.org_entry.count
+        sz = Memory.spec.org_entry.count
         assert (sz[0] & (sz[0] - 1)) == 0
         assert (sz[1] & (sz[1] - 1)) == 0
         
-        tx = Memory.__spec.prefetch_size * Memory.__spec.channel_width / 8
+        tx = Memory.spec.prefetch_size * Memory.spec.channel_width / 8
         Memory.tx_bits = config.calc_log2(int(tx))
         assert (1 << Memory.tx_bits) == tx
         
-        Memory._max_address = Memory.__spec.channel_width / 8
+        Memory._max_address = Memory.spec.channel_width / 8
         for level_i in range(len(BaseSpec.level)):
             Memory._addr_bits.append(config.calc_log2(sz[level_i]))
             if sz[level_i] != 0:
                 Memory._max_address *= sz[level_i]
-        Memory._addr_bits[-1] -= config.calc_log2(Memory.__spec.prefetch_size)
+        Memory._addr_bits[-1] -= config.calc_log2(Memory.spec.prefetch_size)
         Memory._max_address = None
         
         if args_.translation != strings.translation_none:
@@ -98,7 +96,7 @@ class Memory(object):
             raise Exception(Memory.type_)
         
         # enqueue the request and update the statistic
-        if Memory.__ctrls[request.addr_list[0]].enqueue(request) is True:
+        if Memory.ctrls[request.addr_list[0]].enqueue(request) is True:
             # request enqueued successfully
             Memory.flag_stall = False
             if type_ == Request.Type.read:
@@ -127,7 +125,7 @@ class Memory(object):
     def cycle():
         Memory._num_cycles.scalar += 1
         is_active = False
-        for ctrl in Memory.__ctrls:
+        for ctrl in Memory.ctrls:
             is_active = is_active or ctrl.is_active()
             ctrl.cycle()
         if is_active is True:
@@ -135,23 +133,23 @@ class Memory(object):
     
     @staticmethod
     def finish():
-        spec = Memory.__spec
+        spec = Memory.spec
         sz = spec.org_entry.count
         idx_channel = BaseSpec.level.channel.value
         Memory._max_bandwidth = \
             spec.speed_entry.rate * 1e6 * spec.channel_width * sz[idx_channel] / 8
-        for ctrl in Memory.__ctrls:
+        for ctrl in Memory.ctrls:
             num_reads = Memory._num_reads_channel[ctrl.channel.id_]
             ctrl.finish(num_reads)
     
     @staticmethod
     def set_high_writeq_watermark(mark):
-        for ctrl in Memory.__ctrls:
+        for ctrl in Memory.ctrls:
             ctrl.set_high_writeq_watermark(mark)
     
     @staticmethod
     def set_low_writeq_watermark(mark):
-        for ctrl in Memory.__ctrls:
+        for ctrl in Memory.ctrls:
             ctrl.set_low_writeq_watermark(mark)
     
     @staticmethod
@@ -161,7 +159,7 @@ class Memory(object):
     @staticmethod
     def get_num_pending_requests():
         num_reqs = 0
-        for ctrl in Memory.__ctrls:
+        for ctrl in Memory.ctrls:
             num_reqs += (ctrl.queue_read.size() +
                          ctrl.queue_write.size() +
                          ctrl.queue_other.size() +
@@ -172,7 +170,7 @@ class Memory(object):
     @staticmethod
     def print_internal_state():
         print('--------------')
-        for i in range(len(Memory.__ctrls)):
+        for i in range(len(Memory.ctrls)):
             print('  controller {}:'.format(i))
-            Memory.__ctrls[i].print_state()
+            Memory.ctrls[i].print_state()
         print('--------------')

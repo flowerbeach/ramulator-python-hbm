@@ -26,7 +26,7 @@ class RowPolicy(object):
         }  # type: List[RowPolicy._policy_closed]
     
     def get_victim(self, cmd):
-        return self._policy[self.type.value](cmd)
+        return self._policy[self.type](cmd)
     
     def _policy_closed(self, cmd):
         for k in self.ctrl.row_table.table.keys():
