@@ -91,7 +91,7 @@ class Controller(object):
         self._record_conflicts_write = 0
     
     def finish(self, read_req):
-        self._latency_read_avg = self._latency_read_sum / read_req
+        self._latency_read_avg = 0 if read_req == 0 else self._latency_read_sum / read_req
         self._req_queue_length_avg = self._req_queue_length_sum / self.cycle_curr
         self._req_queue_length_read_avg = self._req_queue_length_read_sum / self.cycle_curr
         self._req_queue_length_write_avg = self._req_queue_length_write_sum / self.cycle_curr
@@ -136,7 +136,7 @@ class Controller(object):
                 if req.cycle_depart - req.cycle_arrive > 1:  # this request really accessed a row
                     self._latency_read_sum += req.cycle_depart - req.cycle_arrive
                     self.channel.update_serving_requests(req.addr_list, -1, self.cycle_curr)
-                req.callback(req)  # todo callback
+                req.callback(req)
                 self.pending_reads.pop_i(0)
         
         # 2. Refresh scheduler
@@ -195,9 +195,28 @@ class Controller(object):
             
             tx = (self.channel.t_spec.prefetch_size * self.channel.t_spec.channel_width / 8)
             if req.type == Request.Type.read:
-                raise Exception('todo')  # todo
+                if self.is_row_hit_req(req):
+                    self._hits_row_read += 1
+                    self._hits_row += 1
+                elif self.is_row_open_req(req):
+                    self._conflicts_row_read += 1
+                    self._conflicts_row += 1
+                else:
+                    self._misses_row_read += 1
+                    self._misses_row += 1
+                self._bytes_read += tx
+            
             elif req.type == Request.Type.write:
-                raise Exception('todo')  # todo
+                if self.is_row_hit_req(req):
+                    self._hits_row_write += 1
+                    self._hits_row += 1
+                elif self.is_row_open_req(req):
+                    self._conflicts_row_write += 1
+                    self._conflicts_row += 1
+                else:
+                    self._misses_row_write += 1
+                    self._misses_row += 1
+                self._bytes_write += tx
         
         # issue command on behalf of request
         self._issue_cmd(cmd, self._get_addr_list(cmd, req))
@@ -216,7 +235,7 @@ class Controller(object):
         
         if req.type == Request.Type.write:
             self.channel.update_serving_requests(req.addr_list, -1, self.cycle_curr)
-            req.callback(req)  # todo callback
+            req.callback(req)
         
         queue.queue_req.remove(req)
     

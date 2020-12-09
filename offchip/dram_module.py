@@ -35,12 +35,12 @@ class DRAM(object):
         self._prev = {cmd: Controller.Queue() for cmd in self.t_spec.cmd}
         self._state = None
         
-        self._num_cycles_busy = ScalarStatistic(0)
-        self._num_cycles_active = ScalarStatistic(0)
-        self._num_cycles_refresh = ScalarStatistic(0)
-        self._num_cycles_overlap = ScalarStatistic(0)
-        self._num_reqs_served = ScalarStatistic(0)
-        self._avg_reqs_served = ScalarStatistic(0)
+        self._num_cycles_busy = 0
+        self._num_cycles_active = 0
+        self._num_cycles_refresh = 0
+        self._num_cycles_overlap = 0
+        self._num_reqs_served = 0
+        self._avg_reqs_served = 0
         
         self.initialize()
     
@@ -114,9 +114,9 @@ class DRAM(object):
     
     def check_row_hit(self, cmd, addr_list):
         child_id = addr_list[self.level.value + 1]
-        if self._rowhit[cmd.value]:
+        if self._rowhit[cmd]:
             # stop recursion: there is a row hit at this level
-            return self._rowhit[cmd.value](self, cmd, child_id)
+            return self._rowhit[cmd](self, cmd, child_id)
         
         if child_id < 0 or len(self.children) == 0:
             # stop recursion: there were no row hits at any level
@@ -127,9 +127,9 @@ class DRAM(object):
     
     def check_row_open(self, cmd, addr_list):
         child_id = addr_list[self.level.value + 1]
-        if self._rowopen[cmd.value]:
+        if self._rowopen[cmd]:
             # stop recursion: there is a row open at this level
-            return self._rowopen[cmd.value](self, cmd, child_id)
+            return self._rowopen[cmd](self, cmd, child_id)
         
         if child_id < 0 or len(self.children) == 0:
             # stop recursion: there were no row hits at any level
@@ -181,8 +181,22 @@ class DRAM(object):
             self._prev[cmd].push(cycle_curr)
         
         for t in self._timing[cmd]:
-            raise Exception('todo')  # todo
-
+            if t.sibling:
+                continue
+            past = self._prev[cmd].queue_req[t.dist - 1]
+            if past < 0:
+                continue
+            
+            future = past + t.val
+            self._next[cmd.value] = max(self._next[cmd.value], future)
+            if self.t_spec.is_refreshing(cmd) and self.t_spec.is_opening(cmd):
+                assert past == cycle_curr
+                self.begin_of_refreshing = cycle_curr
+                self.end_of_refreshing = max(self.end_of_refreshing, self._next[cmd.value])
+                self._num_cycles_refresh += self.end_of_refreshing - cycle_curr
+                if self.cur_serving_requests > 0:
+                    self.refresh_intervals.append([self.begin_of_refreshing, self.end_of_refreshing])
+        
         # Some commands have timings that are higher that their scope levels, thus
         # we do not stop at the cmd's scope level
         if len(self.children) == 0:
@@ -231,11 +245,11 @@ class DRAM(object):
     
     def finish(self, num_cycles):
         # finalize busy cycles
-        self._num_cycles_busy.scalar = self._num_cycles_active.scalar + \
-                                       self._num_cycles_refresh.scalar + \
-                                       self._num_cycles_overlap.scalar
+        self._num_cycles_busy = self._num_cycles_active + \
+                                       self._num_cycles_refresh + \
+                                       self._num_cycles_overlap
         # finalize average serving requests
-        self._avg_reqs_served.scalar = self._num_reqs_served.scalar / num_cycles
+        self._avg_reqs_served = self._num_reqs_served / num_cycles
         if len(self.children) == 0:
             return
         for child in self.children:

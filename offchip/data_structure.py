@@ -40,14 +40,21 @@ class Request(object):
         selfrefresh = 'selfrefresh'
         extension = 'extension'
     
-    def __init__(self, addr, type_, device=''):
+    def __init__(self, addr, type_, device='', callback=None):
         self.device = device  # type: str
         self.type = type_  # type: str
         self.addr_int = -1  # type: int
         self.addr_list = []  # type: List[int]
         self.is_first_command = True
         
-        self.callback = None  # todo callback
+        if callback is None:
+            
+            def cb(req):
+                return req
+            
+            self.callback = cb
+        else:
+            self.callback = callback
         
         if type(addr) == int:
             self.addr_int = addr

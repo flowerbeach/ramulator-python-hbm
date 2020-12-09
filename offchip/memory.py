@@ -139,7 +139,10 @@ class Memory(object):
         Memory._max_bandwidth = \
             spec.speed_entry.rate * 1e6 * spec.channel_width * sz[idx_channel] / 8
         for ctrl in Memory.ctrls:
-            num_reads = Memory._num_reads_channel[ctrl.channel.id_]
+            if ctrl.channel.id_ not in Memory._num_reads_channel.keys():
+                num_reads = 0
+            else:
+                num_reads = Memory._num_reads_channel[ctrl.channel.id_]
             ctrl.finish(num_reads)
     
     @staticmethod
