@@ -179,11 +179,11 @@ class DRAM(object):
                 continue
             
             future = past + t.val
-            self._next[cmd.value] = max(self._next[cmd.value], future)
-            if self.t_spec.is_refreshing(cmd) and self.t_spec.is_opening(cmd):
+            self._next[t.cmd.value] = max(self._next[t.cmd.value], future)
+            if self.t_spec.is_refreshing(cmd) and self.t_spec.is_opening(t.cmd):
                 assert past == cycle_curr
                 self.begin_of_refreshing = cycle_curr
-                self.end_of_refreshing = max(self.end_of_refreshing, self._next[cmd.value])
+                self.end_of_refreshing = max(self.end_of_refreshing, self._next[t.cmd.value])
                 self._num_cycles_refresh += self.end_of_refreshing - cycle_curr
                 if self.cur_serving_requests > 0:
                     self.refresh_intervals.append([self.begin_of_refreshing, self.end_of_refreshing])
