@@ -82,7 +82,7 @@ def main(args_, spec_, trace_: Trace):
     ctrls = []
     for i in range(args_.num_channels):
         channel = DRAM(spec_, BaseSpec.level.channel, i)
-        ctrl = Controller(spec_, args_, channel)
+        ctrl = Controller(spec_, channel)
         ctrls.append(ctrl)
     from offchip.memory import Memory
     memory = Memory(args_, ctrls)

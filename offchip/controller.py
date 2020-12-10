@@ -1,39 +1,11 @@
-from typing import List
 from offchip.data_structure import Request
 
 
 class Controller(object):
     from offchip.dram_module import DRAM
+    from offchip.data_structure import Queue
     
-    class Queue(object):
-        def __init__(self, max=32):
-            self.queue_req = []  # type: List[Request]
-            self.max = max
-        
-        def size(self):
-            return len(self.queue_req)
-        
-        def resize(self, max_new, padding=0):
-            self.max = max_new
-            if len(self.queue_req) > max_new:
-                self.queue_req = self.queue_req[:max_new]
-            else:
-                for _ in range(max_new - len(self.queue_req)):
-                    self.queue_req.append(padding)
-        
-        def get_i(self, i):
-            return self.queue_req[i]
-        
-        def pop_i(self, i=0):
-            return self.queue_req.pop(i)
-        
-        def push_i(self, req, i=-1):
-            if i == -1:
-                self.queue_req.append(req)
-            else:
-                self.queue_req.insert(i, req)
-    
-    def __init__(self, t_spec, args_, channel: DRAM):
+    def __init__(self, t_spec, channel: DRAM):
         from offchip.schedule import Scheduler, RowTable, RowPolicy
         from offchip.refresh import Refresh
         from offchip.standard.spec_base import BaseSpec
@@ -118,7 +90,7 @@ class Controller(object):
             raise Exception(queue.size())
         
         req.cycle_arrive = self.cycle_curr
-        queue.queue_req.append(req)
+        queue.push_i(req)
         
         if req.type == Request.Type.read:
             for wreq in self.queue_write.queue_req:
@@ -306,6 +278,7 @@ class Controller(object):
                 for req in queue.queue_req:
                     if self.is_row_hit_req(req):
                         row_group_2 = req.addr_list[:self.t_spec.level.row.value + 1]
+                        raise Exception(row_group, row_group_2)
                         if row_group == row_group_2:
                             num_row_hits += 1
             

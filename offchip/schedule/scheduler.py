@@ -37,7 +37,7 @@ class Scheduler(object):
         # Else return based on the policy
         head = queue_req[0]
         for i in range(1, len(queue_req)):
-            head = self._compare[self.type.value](head, queue_req[i])
+            head = self._compare[self.type](head, queue_req[i])
         
         if self.type != self.Type.FRFCFS_PriorHit:
             return head

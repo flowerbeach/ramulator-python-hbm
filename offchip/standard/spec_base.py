@@ -10,8 +10,8 @@ class Command(Enum):
     pre = 1
     prea = 2
     rd = 3
-    rda = 4
-    wr = 5
+    wr = 4
+    rda = 5
     wra = 6
     ref = 7
     refsb = 8

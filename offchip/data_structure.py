@@ -72,3 +72,32 @@ class Request(object):
     def print(self):
         print('{} {}:'.format(self.device, self.type), self.addr_list)
         print('arrive: {}, depart: {}'.format(self.cycle_arrive, self.cycle_depart))
+
+
+class Queue(object):
+    def __init__(self, max=32):
+        self.queue_req = []  # type: List[Request]
+        self.max = max
+    
+    def size(self):
+        return len(self.queue_req)
+    
+    def resize(self, max_new, padding=0):
+        self.max = max_new
+        if len(self.queue_req) > max_new:
+            self.queue_req = self.queue_req[:max_new]
+        else:
+            for _ in range(max_new - len(self.queue_req)):
+                self.queue_req.append(padding)
+    
+    def get_i(self, i):
+        return self.queue_req[i]
+    
+    def pop_i(self, i=0):
+        return self.queue_req.pop(i)
+    
+    def push_i(self, req, i=-1):
+        if i == -1:
+            self.queue_req.append(req)
+        else:
+            self.queue_req.insert(i, req)  # todo

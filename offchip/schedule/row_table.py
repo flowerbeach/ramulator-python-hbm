@@ -40,11 +40,13 @@ class RowTable(object):
                 scope = spec.scope[cmd.value]
             table_keys = list(self.table.keys())
             for key in table_keys:
-                if key[:scope + 1] == addr_list[:scope + 1]:
+                if key[:(scope.value + 1)] == tuple(addr_list[:(scope.value + 1)]):
                     n_rm += 1
                     del self.table[key]
-            assert n_rm > 0
-            assert n_rm == 1
+            if n_rm <= 0:
+                raise Exception(n_rm)
+            elif n_rm != 1:
+                raise Exception(n_rm)
     
     def get_hits(self, addr_list, to_opened_row=False):
         row_group = tuple(addr_list[:self.t_spec.level.row.value])
