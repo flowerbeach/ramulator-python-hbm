@@ -100,4 +100,4 @@ class Queue(object):
         if i == -1:
             self.queue_req.append(req)
         else:
-            self.queue_req.insert(i, req)  # todo
+            self.queue_req.insert(i, req)

@@ -119,12 +119,12 @@ class Memory(object):
             self.flag_stall = True
     
     def cycle(self):
-        print('--- {}'.format(self.get_num_cycle()))
+        # print('--- {}'.format(self.get_num_cycle()))
         self._num_cycles.scalar += 1
         is_active = False
         for i in range(len(self.ctrls)):
             ctrl = self.ctrls[i]  # type: Memory.Controller
-            print('    ctrl {}: '.format(i))
+            # print('    ctrl {}: '.format(i))
             is_active = is_active or ctrl.is_active()
             ctrl.cycle()
         if is_active is True:

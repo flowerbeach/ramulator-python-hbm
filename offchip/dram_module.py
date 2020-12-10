@@ -179,7 +179,7 @@ class DRAM(object):
                 continue
             
             future = past + t.val
-            print(' {}-{}-{}-{}-{}-k'.format(self.level.value, cmd.value, past, t.val, self._next[t.cmd.value]))
+            # print(' {}-{}-{}-{}-{}-k'.format(self.level.value, cmd.value, past, t.val, self._next[t.cmd.value]))
             self._next[t.cmd.value] = max(self._next[t.cmd.value], future)
             if self.t_spec.is_refreshing(cmd) and self.t_spec.is_opening(t.cmd):
                 assert past == cycle_curr

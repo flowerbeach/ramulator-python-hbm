@@ -88,8 +88,8 @@ def main(args_, spec_, trace_: Trace):
     memory = Memory(args_, ctrls)
     
     flag_end = False
+    request = None  # type: Request
     while flag_end is False or memory.get_num_pending_requests() > 0:
-        request = None  # type: Request
         if flag_end is False and memory.flag_stall is False:
             flag_end, request = trace_.get_trace_request()
         
@@ -102,7 +102,7 @@ def main(args_, spec_, trace_: Trace):
         
         sim_help.print_state_periodically(memory, start=0, interval=1000, do_print_state=False)
         # sim_help.print_state_periodically(start=0, interval=100, do_print_state=True)
-        sim_help.early_termination(memory, end=10000, args=args_)
+        sim_help.early_termination(memory, end=1000000, args=args_)
         
         memory.cycle()
     

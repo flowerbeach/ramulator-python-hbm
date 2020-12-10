@@ -97,7 +97,7 @@ class Controller(object):
                 if wreq.addr_int == req.addr_int:
                     req.cycle_depart = self.cycle_curr + 1
                     self.pending_reads.queue_req.append(req)
-                    self.queue_read.queue_req.pop()
+                    self.queue_read.queue_req.pop(-1)
                     break
         return True
     
