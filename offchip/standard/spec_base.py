@@ -1,5 +1,5 @@
 from typing import Dict, List
-from offchip.standard.spec_data_structure import TimingEntry, SpeedEntry, OrgEntry
+from offchip.standard.spec_data_structure import TimingEntry
 from configs import strings
 from enum import Enum, unique
 
@@ -33,7 +33,7 @@ class Level(Enum):
 
 
 class BaseSpec(object):
-    from main import Argument
+    from main import Global
     cmd = Command
     level = Level
     
@@ -56,17 +56,17 @@ class BaseSpec(object):
     timing = {l: {c: [] for c in Command} for l in Level
               }  # type: Dict[str,Dict[str,List[TimingEntry]]]
     
-    org_table = {
-        strings.org_1Gb: OrgEntry(1 << 10, 128, [0, 0, 4, 2, 1 << 13, 1 << (6 + 1)]),
-        strings.org_2Gb: OrgEntry(2 << 10, 128, [0, 0, 4, 2, 1 << 14, 1 << (6 + 1)]),
-        strings.org_4Gb: OrgEntry(4 << 10, 128, [0, 0, 4, 4, 1 << 14, 1 << (6 + 1)])}
-    org_entry = org_table[Argument.args.org]
-    org_entry.count[Level.rank.value] = Argument.args.num_ranks
-    org_entry.count[Level.channel.value] = Argument.args.num_channels
+    from offchip.standard.spec_data_structure import OrgEntry
+    org_table = {strings.org_1Gb: OrgEntry(1 << 10, 128, [0, 0, 4, 2, 1 << 13, 1 << (6 + 1)]),
+                 strings.org_2Gb: OrgEntry(2 << 10, 128, [0, 0, 4, 2, 1 << 14, 1 << (6 + 1)]),
+                 strings.org_4Gb: OrgEntry(4 << 10, 128, [0, 0, 4, 4, 1 << 14, 1 << (6 + 1)])}
+    org_entry = org_table[Global.args.org]  # type:OrgEntry
+    org_entry.count[Level.rank.value] = Global.args.num_ranks
+    org_entry.count[Level.channel.value] = Global.args.num_channels
     
-    speed_table = {
-        strings.speed_1Gbps: SpeedEntry(1000, 500, 2.0, 2, 2, 3, 7, 7, 6, 7, 4, 17, 24, 7, 2, 4, 8, 4, 5, 20, 0, 1950, 0, 5, 5, 5, 0)}
-    speed_entry = speed_table[Argument.args.speed]
+    from offchip.standard.spec_data_structure import SpeedEntry
+    speed_table = {strings.speed_1Gbps: SpeedEntry(1000, 500, 2.0, 2, 2, 3, 7, 7, 6, 7, 4, 17, 24, 7, 2, 4, 8, 4, 5, 20, 0, 1950, 0, 5, 5, 5, 0)}
+    speed_entry = speed_table[Global.args.speed]
     read_latency = speed_entry.nCL + speed_entry.nBL
     
     prefetch_size = 4  # burst length could be 2 and 4 (choose 4 here), 2n prefetch
@@ -87,7 +87,7 @@ class BaseSpec(object):
     
     @staticmethod
     def initialize():
-        assert BaseSpec.Argument.args.name_spec == BaseSpec.name_spec
+        assert BaseSpec.Global.args.name_spec == BaseSpec.name_spec
         
         BaseSpec._init_speed()
         BaseSpec._init_prereq()
@@ -288,6 +288,14 @@ class BaseSpec(object):
         def lambda_bank_wr(node: DRAM, id_):
             return
         
+        def lambda_bank_rda(node: DRAM, id_):
+            node.set_state(strings.state_closed)
+            node.row_state = {}
+        
+        def lambda_bank_wra(node: DRAM, id_):
+            node.set_state(strings.state_closed)
+            node.row_state = {}
+        
         def lambda_rank_pde(node: DRAM, id_):
             for bg in node.children:
                 for bank in bg.children:
@@ -303,18 +311,21 @@ class BaseSpec(object):
         def lambda_rank_sre(node: DRAM, id_):
             node.set_state(strings.state_selfrefresh)
         
+        def lambda_rank_srx(node: DRAM, id_):
+            node.set_state(strings.state_powerup)
+        
         BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.act] = lambda_bank_act
         BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.pre] = lambda_bank_pre
         BaseSpec.lambda_[BaseSpec.level.rank][BaseSpec.cmd.prea] = lambda_rank_prea
         BaseSpec.lambda_[BaseSpec.level.rank][BaseSpec.cmd.ref] = lambda_rank_ref
         BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.rd] = lambda_bank_rd
         BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.wr] = lambda_bank_wr
-        BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.rda] = lambda_bank_pre
-        BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.wra] = lambda_bank_pre
+        BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.rda] = lambda_bank_rda
+        BaseSpec.lambda_[BaseSpec.level.bank][BaseSpec.cmd.wra] = lambda_bank_wra
         BaseSpec.lambda_[BaseSpec.level.rank][BaseSpec.cmd.pde] = lambda_rank_pde
         BaseSpec.lambda_[BaseSpec.level.rank][BaseSpec.cmd.pdx] = lambda_rank_pdx
         BaseSpec.lambda_[BaseSpec.level.rank][BaseSpec.cmd.sre] = lambda_rank_sre
-        BaseSpec.lambda_[BaseSpec.level.rank][BaseSpec.cmd.srx] = lambda_rank_pdx
+        BaseSpec.lambda_[BaseSpec.level.rank][BaseSpec.cmd.srx] = lambda_rank_srx
     
     @staticmethod
     def _init_timing():

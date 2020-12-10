@@ -1,10 +1,9 @@
 from typing import List, Dict, Any
-from offchip.standard.spec_base import BaseSpec
-from configs.stat_data_structure import ScalarStatistic
 
 
 class DRAM(object):
-    def __init__(self, t_spec: BaseSpec, level, id_: int):
+    def __init__(self, t_spec, level, id_: int):
+        from offchip.standard.spec_base import BaseSpec
         from offchip.controller import Controller
         
         self.id_ = id_
@@ -26,14 +25,14 @@ class DRAM(object):
         self.end_of_refreshing = -1
         self.refresh_intervals = []  # type: List[List]
         
-        self._prereq = {}
-        self._rowhit = {}
-        self._rowopen = {}
-        self._lambda = {}
-        self._timing = {}
-        self._next = []
+        self._state = self.t_spec.start[self.level]
+        self._prereq = self.t_spec.prereq[self.level]
+        self._rowhit = self.t_spec.rowhit[self.level]
+        self._rowopen = self.t_spec.rowopen[self.level]
+        self._lambda = self.t_spec.lambda_[self.level]
+        self._timing = self.t_spec.timing[self.level]
         self._prev = {cmd: Controller.Queue() for cmd in self.t_spec.cmd}
-        self._state = None
+        self._next = [-1 for _ in self.t_spec.cmd]
         
         self._num_cycles_busy = 0
         self._num_cycles_active = 0
@@ -48,14 +47,6 @@ class DRAM(object):
         from offchip.controller import Controller
         self._prev: Dict[Any, Controller.Queue]
         
-        self._state = self.t_spec.start[self.level]
-        self._prereq = self.t_spec.prereq[self.level]
-        self._rowhit = self.t_spec.rowhit[self.level]
-        self._rowopen = self.t_spec.rowopen[self.level]
-        self._lambda = self.t_spec.lambda_[self.level]
-        self._timing = self.t_spec.timing[self.level]
-        
-        self._next = [-1 for _ in self.t_spec.cmd]
         for cmd in self.t_spec.cmd:
             dist = 0
             for t in self._timing[cmd]:
@@ -169,7 +160,7 @@ class DRAM(object):
                 # update future
                 assert t.dist == 1
                 future = cycle_curr + t.val
-                self._next[t.cmd.value] = max(future, self._next[t.cmd.value])
+                self._next[t.cmd.value] = max(self._next[t.cmd.value], future)
             
             # stop recursion: only target nodes should be recursed
             return
@@ -246,8 +237,8 @@ class DRAM(object):
     def finish(self, num_cycles):
         # finalize busy cycles
         self._num_cycles_busy = self._num_cycles_active + \
-                                       self._num_cycles_refresh + \
-                                       self._num_cycles_overlap
+                                self._num_cycles_refresh + \
+                                self._num_cycles_overlap
         # finalize average serving requests
         self._avg_reqs_served = self._num_reqs_served / num_cycles
         if len(self.children) == 0:

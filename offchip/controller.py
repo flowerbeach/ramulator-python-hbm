@@ -3,7 +3,6 @@ from offchip.data_structure import Request
 
 
 class Controller(object):
-    from offchip.standard.spec_base import BaseSpec as t_spec
     from offchip.dram_module import DRAM
     
     class Queue(object):
@@ -31,10 +30,11 @@ class Controller(object):
         def push(self, req):
             self.queue_req.append(req)
     
-    def __init__(self, args_, channel: DRAM):
+    def __init__(self, t_spec, args_, channel: DRAM):
         from offchip.schedule import Scheduler, RowTable, RowPolicy
         from offchip.refresh import Refresh
-        
+        from offchip.standard.spec_base import BaseSpec
+        self.t_spec = t_spec  # type:BaseSpec
         self.cycle_curr = 0
         self.channel = channel
         self.spec = channel.t_spec
@@ -164,6 +164,9 @@ class Controller(object):
             cmd = self._get_first_cmd(req)
             is_valid_req = self.is_ready_cmd(cmd, req.addr_list)
         
+        if cmd == self.t_spec.cmd.rd:
+            raise Exception(is_valid_req)
+        
         if is_valid_req is False:
             # "other" requests are rare, so we give them precedence over reads/writes
             if self.queue_other.size() > 0:
@@ -181,7 +184,8 @@ class Controller(object):
         
         if is_valid_req is False:
             # we couldn't find a command to schedule -- let's try to be speculative
-            cmd = Controller.t_spec.cmd.pre
+            from offchip.standard.spec_base import BaseSpec as t_spec
+            cmd = t_spec.cmd.pre
             victim = self.row_policy.get_victim(cmd)
             if len(victim) > 0:
                 self._issue_cmd(cmd, victim)
@@ -224,7 +228,7 @@ class Controller(object):
         if cmd != self.channel.t_spec.translate[req.type]:
             if self.channel.t_spec.is_opening(cmd):
                 # promote the request that caused issuing activation to actq
-                self.queue_activate.queue_req.append(req)
+                self.queue_activate.push(req)
                 queue.queue_req.remove(req)
             return
         
@@ -318,6 +322,7 @@ class Controller(object):
         return cmd
     
     def _issue_cmd(self, cmd, addr_list):
+        # print(cmd, end='')
         cmd = self._cmd_issue_autoprecharge(cmd, addr_list)
         assert self.is_ready_cmd(cmd, addr_list)
         self.channel.update(cmd, addr_list, self.cycle_curr)

@@ -65,7 +65,7 @@ def parse_config(args_):
     return args_
 
 
-class Argument(object):
+class Global(object):
     args = parse_config(
         ArgumentParser(description='simulation - DRAM').parse_args()
     )  # type: ArgumentParser
@@ -76,48 +76,48 @@ from offchip.data_structure import Request, Trace
 
 def main(args_, spec_, trace_: Trace):
     from offchip.standard.spec_base import BaseSpec
-    from offchip.memory import Memory as MAH
     from offchip.controller import Controller
     from offchip.dram_module import DRAM
     spec_: BaseSpec
     ctrls = []
     for i in range(args_.num_channels):
         channel = DRAM(spec_, BaseSpec.level.channel, i)
-        ctrl = Controller(args_, channel)
+        ctrl = Controller(spec_, args_, channel)
         ctrls.append(ctrl)
-    MAH.initialize(args_, ctrls)
+    from offchip.memory import Memory
+    memory = Memory(args_, ctrls)
     
     flag_end = False
-    while flag_end is False or MAH.get_num_pending_requests() > 0:
+    while flag_end is False or memory.get_num_pending_requests() > 0:
         request = None  # type: Request
-        if flag_end is False and MAH.flag_stall is False:
+        if flag_end is False and memory.flag_stall is False:
             flag_end, request = trace_.get_trace_request()
         
         if flag_end is False:
-            MAH.send(request)
+            memory.send(request)
         
         if flag_end is True:
             # make sure that all write requests in the write queue are drained
-            MAH.set_high_writeq_watermark(0.0)
+            memory.set_high_writeq_watermark(0.0)
         
-        sim_help.print_state_periodically(start=0, interval=1000, do_print_state=False)
+        sim_help.print_state_periodically(memory, start=0, interval=1000, do_print_state=False)
         # sim_help.print_state_periodically(start=0, interval=100, do_print_state=True)
-        sim_help.early_termination(end=10000, args=args_)
+        sim_help.early_termination(memory, end=10000, args=args_)
         
-        MAH.cycle()
+        memory.cycle()
     
-    MAH.finish()
-    sim_help.print_statistics(args_)
+    memory.finish()
+    sim_help.print_statistics(memory, args_)
 
 
 if __name__ == '__main__':
-    print(Argument.args)
+    print(Global.args)
     print()
     
     # DRAM trace
     trace_file = 'dram.trace'
     
-    name_spec = Argument.args.name_spec
+    name_spec = Global.args.name_spec
     if name_spec == strings.standard.hbm:
         from offchip.standard.spec_base import BaseSpec
         Standard = BaseSpec
@@ -126,4 +126,4 @@ if __name__ == '__main__':
     
     standard = Standard.initialize()
     trace = Trace(trace_file)
-    main(Argument.args, Standard, trace)
+    main(Global.args, Standard, trace)
