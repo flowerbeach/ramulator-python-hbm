@@ -12,6 +12,7 @@ class Memory(object):
     
     def __init__(self, args_, ctrls: List[Controller]):
         from offchip.standard import BaseSpec
+        self.print = args_.print
         self.flag_stall = False
         self.translation = strings.translation_none
         self.type_ = strings.memory_type_RoBaRaCoCh
@@ -119,7 +120,8 @@ class Memory(object):
             self.flag_stall = True
     
     def cycle(self):
-        # print('--- {}'.format(self.get_num_cycle()))
+        if self.print:
+            print('--- {}'.format(self.get_num_cycle()))
         self._num_cycles.scalar += 1
         is_active = False
         for i in range(len(self.ctrls)):

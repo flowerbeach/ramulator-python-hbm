@@ -2,9 +2,11 @@ from typing import List, Dict, Any
 
 
 class DRAM(object):
-    def __init__(self, t_spec, level, id_: int):
+    def __init__(self, t_spec, args, level, id_: int):
         from offchip.standard.spec_base import BaseSpec
         from offchip.controller import Controller
+        self.print = args.print
+        self.args = args
         
         self.id_ = id_
         self.t_spec = t_spec  # type: BaseSpec
@@ -64,7 +66,7 @@ class DRAM(object):
         
         # recursively construct the children
         for i in range(child_max):
-            child = DRAM(self.t_spec, child_level, id_=i)
+            child = DRAM(self.t_spec, self.args, child_level, id_=i)
             child.parent = self
             self.children.append(child)
     
@@ -179,7 +181,8 @@ class DRAM(object):
                 continue
             
             future = past + t.val
-            # print(' {}-{}-{}-{}-{}-k'.format(self.level.value, cmd.value, past, t.val, self._next[t.cmd.value]))
+            if self.print:
+                print(' {}-{}-{}-{}-{}-k'.format(self.level.value, cmd.value, past, t.val, self._next[t.cmd.value]))
             self._next[t.cmd.value] = max(self._next[t.cmd.value], future)
             if self.t_spec.is_refreshing(cmd) and self.t_spec.is_opening(t.cmd):
                 assert past == cycle_curr

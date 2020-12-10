@@ -20,6 +20,7 @@ class ArgumentParser(Tap):
     warmup_insts = 0
     expected_limit_insts = 0
     translation = strings.translation_none
+    print = False
 
 
 def parse_config(args_):
@@ -81,7 +82,7 @@ def main(args_, spec_, trace_: Trace):
     spec_: BaseSpec
     ctrls = []
     for i in range(args_.num_channels):
-        channel = DRAM(spec_, BaseSpec.level.channel, i)
+        channel = DRAM(spec_, args_, BaseSpec.level.channel, i)
         ctrl = Controller(spec_, channel)
         ctrls.append(ctrl)
     from offchip.memory import Memory
@@ -100,7 +101,7 @@ def main(args_, spec_, trace_: Trace):
             # make sure that all write requests in the write queue are drained
             memory.set_high_writeq_watermark(0.0)
         
-        sim_help.print_state_periodically(memory, start=0, interval=1000, do_print_state=False)
+        sim_help.print_state_periodically(memory, start=0, interval=10000, do_print_state=False)
         # sim_help.print_state_periodically(start=0, interval=100, do_print_state=True)
         sim_help.early_termination(memory, end=1000000, args=args_)
         
