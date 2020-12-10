@@ -168,8 +168,8 @@ class DRAM(object):
         from offchip.controller import Controller
         self._prev: Dict[Any, Controller.Queue]
         if self._prev[cmd].size() > 0:
-            self._prev[cmd].pop_i()
-            self._prev[cmd].push(cycle_curr)
+            self._prev[cmd].pop_i(-1)
+            self._prev[cmd].push_i(cycle_curr, 0)
         
         for t in self._timing[cmd]:
             if t.sibling:
@@ -179,6 +179,7 @@ class DRAM(object):
                 continue
             
             future = past + t.val
+            print(' {}-{}-{}-{}-{}-k'.format(self.level.value, cmd.value, past, t.val, self._next[t.cmd.value]))
             self._next[t.cmd.value] = max(self._next[t.cmd.value], future)
             if self.t_spec.is_refreshing(cmd) and self.t_spec.is_opening(t.cmd):
                 assert past == cycle_curr

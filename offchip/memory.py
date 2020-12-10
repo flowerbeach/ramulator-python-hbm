@@ -124,10 +124,9 @@ class Memory(object):
         is_active = False
         for i in range(len(self.ctrls)):
             ctrl = self.ctrls[i]  # type: Memory.Controller
-            print('    ctrl {}: '.format(i), end='')
+            print('    ctrl {}: '.format(i))
             is_active = is_active or ctrl.is_active()
             ctrl.cycle()
-            print()
         if is_active is True:
             self._num_cycles_active.scalar += 1
     

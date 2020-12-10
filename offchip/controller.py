@@ -27,8 +27,11 @@ class Controller(object):
         def pop_i(self, i=0):
             return self.queue_req.pop(i)
         
-        def push(self, req):
-            self.queue_req.append(req)
+        def push_i(self, req, i=-1):
+            if i == -1:
+                self.queue_req.append(req)
+            else:
+                self.queue_req.insert(i, req)
     
     def __init__(self, t_spec, args_, channel: DRAM):
         from offchip.schedule import Scheduler, RowTable, RowPolicy
@@ -164,9 +167,6 @@ class Controller(object):
             cmd = self._get_first_cmd(req)
             is_valid_req = self.is_ready_cmd(cmd, req.addr_list)
         
-        if cmd == self.t_spec.cmd.rd:
-            raise Exception(is_valid_req)
-        
         if is_valid_req is False:
             # "other" requests are rare, so we give them precedence over reads/writes
             if self.queue_other.size() > 0:
@@ -228,14 +228,14 @@ class Controller(object):
         if cmd != self.channel.t_spec.translate[req.type]:
             if self.channel.t_spec.is_opening(cmd):
                 # promote the request that caused issuing activation to actq
-                self.queue_activate.push(req)
+                self.queue_activate.push_i(req)
                 queue.queue_req.remove(req)
             return
         
         # set a future completion time for read requests
         if req.type == Request.Type.read:
             req.cycle_depart = self.cycle_curr + self.channel.t_spec.read_latency
-            self.pending_reads.push(req)
+            self.pending_reads.push_i(req)
         
         if req.type == Request.Type.write:
             self.channel.update_serving_requests(req.addr_list, -1, self.cycle_curr)
